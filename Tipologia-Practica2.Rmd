@@ -137,6 +137,26 @@ lm_price<-lm(price.actual ~ . ,data = aux_data)
 rsquarelm<-summary(lm_price)$adj.r.squared
 ````
 
+
+````{r}
+x_train<-aux_data[1:(nrow(aux_data)*0.7),] #x_train
+x_test<-aux_data[(nrow(aux_data)*0.7):nrow(aux_data),] #x_test
+tree_model<-rpart(price.actual ~ ., data=x_train,control=rpart.control(minsplit=2, minbucket = 1,cp=0.00001))
+
+prices_pred<-predict(tree_model,newdata=x_test)
+prices_real<-x_test$price.actual
+````
+
+
+Evaluación del modelo:
+````{r}
+
+rmse_tree_model<-rmse(preds = prices_pred,actuals = prices_real)
+
+````
+
+`r round(rmse_tree_model,3)`
+
 Quitar las de forecast
 
 
