@@ -1,0 +1,161 @@
+---
+title: "Practica 2: Limpieza y análisis de datos"
+author: "Autor: Samuel Campo Martínez"
+date: "Junio 2020"
+output:
+  html_document:
+    highlight: default
+    toc: yes
+    toc_depth: 3
+    #code_folding: hide
+    fig.show: hide
+    number_sections: yes
+    theme: cosmo
+  pdf_document: default
+---
+
+```{r setup, include=FALSE,echo=FALSE,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("psych",repos = "http://cran.us.r-project.org")
+#install.packages("rlang",repos = "http://cran.us.r-project.org")
+#install.packages("VIM",repos = "http://cran.us.r-project.org")
+#install.packages("pROC",repos = "http://cran.us.r-project.org")
+#install.packages("ResourceSelection",repos = "http://cran.us.r-project.org")
+#install.packages("scales",repos = "http://cran.us.r-project.org")
+#install.packages("gmodels",repos = "http://cran.us.r-project.org")
+#install.packages("faraway",repos = "http://cran.us.r-project.org")
+#list.of.packages <- c("VIM")
+#new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+#if(length(new.packages)) install.packages(new.packages)
+```
+
+````{r, echo=FALSE,message=FALSE,warning=FALSE}
+#Cargamos las librerías psych, stringr y VIM para la media de winsorizada, para hacer labores complejas con strings y VIM para transformar los valores perdidos usando el método kNN
+#library(psych)
+#library(stringr)
+library(VIM)
+library(knitr)
+library(pROC)
+library(questionr)
+library(scales)
+library(ResourceSelection)
+library(gmodels)
+library(faraway)
+library(car)
+library(rattle)
+````
+
+
+
+````{r}
+setwd("D:/MASTER_DATA_SCIENCE/TIPOLOGIA_Y_CICLO_DE_VIDA_DEL_DATO/PECs/PRACTICA2/DATA/FILTER1/ENERGY_USE_WEATHER")
+raw_data<-read.csv("energy_dataset.csv",stringsAsFactors = FALSE)
+````
+
+
+
+````{r}
+date_data<-as.POSIXlt(raw_data$time)
+day_cond<-(date_data$hour>6) & (date_data$hour<=12)
+afternoon_cond<-(date_data$hour>12) & (date_data$hour<=18)
+evening_cond<-(date_data$hour>18) & (date_data$hour<=23)
+night_cond<-(date_data$hour>=0) & (date_data$hour<=6)
+
+spring_cond<-(date_data$mon>=2) & (date_data$mon<5)
+summer_cond<-(date_data$mon>=5) & (date_data$mon<8)
+fall_cond<-(date_data$mon>=8) & (date_data$mon<11)
+winter_cond<-(date_data$mon>=11) | (date_data$mon<2)
+
+raw_data[day_cond,"daytime_dis"]<-1
+raw_data[afternoon_cond,"daytime_dis"]<-2
+raw_data[evening_cond,"daytime_dis"]<-3
+raw_data[night_cond,"daytime_dis"]<-4
+
+raw_data[spring_cond,"season_dis"]<-1
+raw_data[summer_cond,"season_dis"]<-2
+raw_data[fall_cond,"season_dis"]<-3
+raw_data[winter_cond,"season_dis"]<-4
+
+raw_data[day_cond,"daytime"]<-"day"
+raw_data[afternoon_cond,"daytime"]<-"afternoon"
+raw_data[evening_cond,"daytime"]<-"evening"
+raw_data[night_cond,"daytime"]<-"night"
+
+raw_data[spring_cond,"season"]<-"spring"
+raw_data[summer_cond,"season"]<-"summer"
+raw_data[fall_cond,"season"]<-"fall"
+raw_data[winter_cond,"season"]<-"winter"
+
+set.seed(42)
+
+treat_data<-raw_data[-1]
+
+treat_data<-treat_data[sample(nrow(treat_data)),]
+rownames(treat_data)<-NULL
+````
+
+
+
+````{r}
+treat_data<-subset(treat_data,select = -c(generation.hydro.pumped.storage.aggregated,forecast.wind.offshore.eday.ahead,forecast.solar.day.ahead,total.load.forecast,generation.geothermal,generation.marine,generation.fossil.peat,generation.fossil.oil.shale,generation.fossil.coal.derived.gas,generation.wind.offshore,forecast.wind.onshore.day.ahead))
+````
+
+
+
+````{r}
+clean_data<-treat_data
+aux_data<-clean_data[,1:(length(clean_data)-2)] #Cogemos solamente los valores numéricos
+
+for (feature in names(aux_data)){
+    aux_data[!(is.na(aux_data[,feature])),feature]<-scale(aux_data[!(is.na(aux_data[,feature])),feature])
+}
+
+
+for (feature in names(aux_data)){
+  if ((any(is.na(aux_data[,feature])))){
+    aux_data[!(is.na(aux_data[,feature])),feature]<-scale(aux_data[!(is.na(aux_data[,feature])),feature])
+    aux_data[,feature]<-kNN(aux_data,k=30)[,feature]
+    #clean_data[is.na(clean_data[,feature]),feature]<-aux_data[is.na(clean_data[,feature]),feature]
+  }
+}
+
+scl_clean_data<-aux_data
+scl_clean_data[,"season"]<-clean_data[,"season"]
+scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
+
+summary(scl_clean_data)
+
+
+````
+
+````{r}
+for (i in names(aux_data)){hist(aux_data[,i],100,main = i)}
+````
+
+````{r}
+lm_price<-lm(price.actual ~ . ,data = aux_data)
+rsquarelm<-summary(lm_price)$adj.r.squared
+````
+
+Quitar las de forecast
+
+
+
+
+
+
+
+
+
+
+
+# Referencias
+(1) http://rstudio-pubs-static.s3.amazonaws.com/6310_50bf282589154a148dd7decd20e90f5d.html
+(2) https://data.library.virginia.edu/understanding-q-q-plots/
+(3) https://es.wikipedia.org/wiki/Propagaci%C3%B3n_de_errores
+(4) http://pages.stat.wisc.edu/~st571-1/06-tables-4.pdf
+(5) http://networkianos.com/odd-ratio-que-es-como-se-interpreta/#toc-3 
+(6) https://prevencion.umh.es/files/2015/03/riesgo-relativo-y-odds-ratio.pdf
+(7) https://stats.stackexchange.com/questions/25839/logistic-regression-in-r-returning-na-values
+(8) https://en.wikipedia.org/wiki/Hosmer%E2%80%93Lemeshow_test 
+(9) https://www.statisticshowto.com/hosmer-lemeshow-test/ 
