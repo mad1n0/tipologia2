@@ -1,6 +1,6 @@
 ---
 title: "Practica 2: Limpieza y análisis de datos"
-author: "Autor: Samuel Campo Martínez"
+author: "Autor: Marc Valdivieso Merino y Samuel Campo Martínez"
 date: "Junio 2020"
 output:
   html_document:
@@ -43,17 +43,105 @@ library(gmodels)
 library(faraway)
 library(car)
 library(rattle)
+library(rpart)
+library(mltools)
 ````
 
+# 1- Carga y descripción del dataset elegido.
+
+````{r}
+raw_data<-read.csv("energy_dataset.csv",stringsAsFactors = FALSE)
+head(raw_data)
+tail(raw_data)
+````
+
+El dataset elegido es el energy_dataset de kaggle encontrado en: https://www.kaggle.com/nicholasjhana/energy-consumption-generation-prices-and-weather?select=weather_features.csv
+Contiene datos sobre la producción energética dee cada uno de los tipos de energía listados en las columnas y el coste de la compra de energía en cada uno de los instantes en los que se captura la información del dataset, durante un plazo de tiempo de tres años. Con él tenemos la intención de identificar qué factores y en qué medida la generación no controlable de energía renovable y la necesidad de consumo energético, así como la demanda energética, conducen a una fluctuación del precio de la energía, en qué momentos y estaciones. El dataset cuenta con los siguientes campos:
+
+- Time: Variable timestamp, actualizada cada hora. entre 1 de enero de 2015 y 2019. Incluye fecha y hora, tipo char.
+
+- generation.biomass: Cantidad de energía por biomasa generada. Valor numérico.
+
+- generation.fossil.brown.coal.ignite: Cantidad de energía por quema de carbón marrón generada. Valor numérico.
+
+. generation.fossil.coal.derived.gas: Cantidad de energía por derivados de carbón generada. Valor numérico.
+
+- generation.fossil.gas: Cantidad de energía por gas generada. Valor numérico.
+
+- generation.fossil.hard.coal: Cantidad de energía por carbón duro generada. Valor numérico.
+
+- generation.fossil.oil: Cantidad de energía por petróleo generada. Valor numérico.
+
+- generation.fossil.oil.shale: Cantidad de energía por petróleo bituminoso generada. Valor numérico. No hay valores disponibles ene l datasest.
+
+- generation.fossil.peat: Cantidad de energía por petróleo vegetal generada. Valor numérico.
+
+- generation.geothermal: Cantidad de energía geotérmica capturada. Valor numérico.
+
+- generation.hydro.pumped.storage.aggregated: Cantidad de energía hidráulica acumulada. Valor numérico. No hay valores disponibles de este campo, son NA.
+
+- generation.hydro.pumped.storage.consumption: Cantidad de energía hidráulica generada a través de consumir reservas de ésta (en una presa o parecidos). Valor numérico.
+
+- generation.hydro.run.of.river.and.poundage: Cantidad de energía hidráulica en río capturada. Valor numérico.
+
+- generation.hydro.water.reservoir: Cantidad de energía hidráulica en río en reservas. Valor numérico.
+
+- generation.marine: Cantidad de energía hidráulica marina capturada. Valor numérico. Sin valores disponibles.
+
+- generation.nuclear: Cantidad de energía nuclear generada. Valor numérico.
+
+- generation.other: Cantidad de energía por biomasa generada. Valor numérico.
+
+- generation.other.renewable: Cantidad de energía conseguida por otros métodos. Valor numérico.
+
+- generation.solar: Cantidad de energía solar generada. Valor numérico.
+
+- generation.waste: Cantidad de energía por quema de restos. Valor numérico.
+
+- generation.wind.offshore: Cantidad de energía eólica capturada fuera de la frontera de España. Valor numérico.
+
+- generation.wind.onshore: Cantidad de energía eólica capturada dentro de la frontera de España. Valor numérico.
+
+- forecast.solar.day.ahead: Cantidad de energía solar prevista al día siguiente. Valor numérico.
+
+- forecast.wind.offshore.eday.ahead: Cantidad de energía eólica prevista para el día siguiente fuera de la frontera. Valor numérico.
+
+- forecast.wind.onshore.day.ahead: Cantidad de energía eólica prevista para el día siguiente dentro de la frontera. Valor numérico.
+
+- total.load.forecast: Previsión de la cantidad de energía requerida al siguiente día. Valor numérico. 
+
+- total.load.actual: Cantidad de energía requerida en el momento actual. Valor numérico.
+
+- price.day.ahead: Precio de la energía en el caso de hacer una compra anticipada para el día siguiente.
+
+- price.actual: Precio de la energía en el momento de la captura de los datos.
+
+
+Unas de las preguntas que intentaremos resolver son:
+- ¿Cuál es el precio de la electricidad según su origen?
+- ¿Hay fuentes de energías que estadísticamente encarecen el precio final?
+
+
+# 2- Selección de datos de interés.
+
+Tenemos una serie de variables que claramente no nos darán ningún tipo de información ya que su único valor es 0:
 
 
 ````{r}
-setwd("D:/MASTER_DATA_SCIENCE/TIPOLOGIA_Y_CICLO_DE_VIDA_DEL_DATO/PECs/PRACTICA2/DATA/FILTER1/ENERGY_USE_WEATHER")
-raw_data<-read.csv("energy_dataset.csv",stringsAsFactors = FALSE)
+lack_info_names<-c()
+for (lack_info in names(raw_data)){
+  if ((length(unique(raw_data[,lack_info]))<=2)){
+    lack_info_names<-append(lack_info_names,lack_info)
+  }
+}
+
 ````
 
+Estos son dichas variables: `r as.character(lack_info_names)`
 
 
+
+Como no vamos a hacer una evaluación de una serie temporal lo que hacemos es discretizar la variable Time creando dos columnas nuevas: daytime y season, para identificar el registro en el momento del día y la estación del año.
 ````{r}
 date_data<-as.POSIXlt(raw_data$time)
 day_cond<-(date_data$hour>6) & (date_data$hour<=12)
@@ -94,6 +182,12 @@ treat_data<-treat_data[sample(nrow(treat_data)),]
 rownames(treat_data)<-NULL
 ````
 
+Se han generado columnas adicionales para poder hacer medidas relativas a las estaciones más fácilmente.
+
+
+
+Además, sabiendo el tipo  de análisis que nos disponemos a hacer, sabemos que en principio no necesitaremos los forecasts de energía para aplicar ninguno de los modelos de los que disponemos, o sea que descartamos las columnas de forecast de energía eólica y energía solar de las que disponemos.
+
 
 
 ````{r}
@@ -101,6 +195,7 @@ treat_data<-subset(treat_data,select = -c(generation.hydro.pumped.storage.aggreg
 ````
 
 
+# 3- Limpieza de datos
 
 ````{r}
 clean_data<-treat_data
@@ -123,21 +218,60 @@ scl_clean_data<-aux_data
 scl_clean_data[,"season"]<-clean_data[,"season"]
 scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
 
-summary(scl_clean_data)
-
-
 ````
+Las columnas sin valores porque o bien son todos 0, o bien NA se eliminan. Después de las tareas de limpieza y selección de datos, disponemos de la siguiente lista de campos:
+
+
+## Sumario del dataset preprocesado
+
+````{r}
+summary(scl_clean_data)
+````
+
+- Time
+- generation.fossil.brown.coal.ignite
+- generation.fossil.gas
+- generation.fossil.hard.coal
+- generation.fossil.oil
+- generation.hydro.pumped.storage.consumption
+- generation.hydro.run.of.river.and.poundage
+- generation.hydro.water.reservoir
+- generation.nuclear
+- generation.other
+- generation.other.renewable
+- generation.solar
+- generation.waste
+- generation.wind.onshore
+- total.load.forecast
+- total.load.actual
+- price.day.ahead
+- price.actual
+- daytime_dis
+- season_dis
+- daytime
+- season
+
+# 4- Análisis
+
+## 4.1 - Decisión de los datos a comparar
+
+## 4.2 - Análisis de varianza del dataset
+
+
 
 ````{r}
 for (i in names(aux_data)){hist(aux_data[,i],100,main = i)}
 ````
 
+
+Se hace una regresión lineal del precio para ver la evolución de la varianza y estudiar la homocedasticidad.
 ````{r}
 lm_price<-lm(price.actual ~ . ,data = aux_data)
 rsquarelm<-summary(lm_price)$adj.r.squared
 ````
 
 
+Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* sea muy bajo para que el acierto en las poblaciones sea mayor.
 ````{r}
 x_train<-aux_data[1:(nrow(aux_data)*0.7),] #x_train
 x_test<-aux_data[(nrow(aux_data)*0.7):nrow(aux_data),] #x_test
@@ -150,17 +284,10 @@ prices_real<-x_test$price.actual
 
 Evaluación del modelo:
 ````{r}
-
 rmse_tree_model<-rmse(preds = prices_pred,actuals = prices_real)
-
 ````
 
-`r round(rmse_tree_model,3)`
-
-Quitar las de forecast
-
-
-
+Podemos ver que el modelo tiene un *root mean square error* de: `r round(rmse_tree_model,3)`, teniendo en cuenta que los valores escalados van entre `r min(x_train$price.actual)` y `r max(x_train$price.actual)` ese valor medio del error no parece demasiado para un módelo con una configuración tan simple.
 
 
 
