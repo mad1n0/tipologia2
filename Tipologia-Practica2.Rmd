@@ -116,8 +116,8 @@ El dataset elegido es el energy_dataset de Kaggle (1). Contiene datos sobre la p
 
 
 Unas de las preguntas que intentaremos resolver son:
-- **¿Cuál es el precio de la electricidad según su origen?**
-- **¿Hay fuentes de energías que estadísticamente encarecen el precio final?**
+- **¿Cuál es el precio de la electricidad según su origen?**<br></br>
+- **¿Hay fuentes de energías que estadísticamente encarecen el precio final?**<br></br>
 
 
 # 2- Selección de datos de interés.
@@ -198,15 +198,9 @@ La distribución de las horas y los meses para crear esas variables discretizant
   - Winter: de Diciembre a Febrero incluido.<br></br>
 
 
-REVISAR SI QUITAR LOS FORECAST PARA VER SI LA ESTADÍSTICA SIGUE LA LÓGICA, ¿TIENE RELACIÓN CON EL PRECIO?
-
-
-Además, sabiendo el tipo de análisis que nos disponemos a hacer, sabemos que en principio no necesitaremos los forecasts de energía para aplicar ninguno de los modelos de los que disponemos, o sea que descartamos las columnas de forecast de energía eólica y energía solar de las que disponemos.
-
-
 
 ````{r}
-treat_data<-subset(treat_data,select = -c(generation.hydro.pumped.storage.aggregated,forecast.wind.offshore.eday.ahead,forecast.solar.day.ahead,total.load.forecast,generation.geothermal,generation.marine,generation.fossil.peat,generation.fossil.oil.shale,generation.fossil.coal.derived.gas,generation.wind.offshore,forecast.wind.onshore.day.ahead))
+treat_data<-subset(treat_data,select = -c(generation.hydro.pumped.storage.aggregated,forecast.wind.offshore.eday.ahead,generation.geothermal,generation.marine,generation.fossil.peat,generation.fossil.oil.shale,generation.fossil.coal.derived.gas,generation.wind.offshore))
 ````
 
 
@@ -216,10 +210,49 @@ Tras haber seleccionado las columnas que vamos a emplear seguimos con una limpie
 
 HAY QUE REVISAR ESTE PROCESO PORQUE PARECE QUE ESTAMOS ROMPIENDO LOS DATOS.
 
-## Valores NA
+## Valores outliers
+
 ````{r}
 clean_data<-treat_data
-aux_data<-clean_data[,1:(length(clean_data)-2)] #Cogemos solamente los valores numéricos
+
+aux_data<-clean_data[,1:(length(clean_data)-2)] #Cogemos solamente los valores numéricos quitando las columnas de las variables categóricas del daytime y la season.
+
+for (feature in names(aux_data)){
+  aux_out<-boxplot.stats(aux_data[,feature])$out
+  if (length(aux_out)>0){
+    boxplot(aux_data[,feature],main=feature)
+    hist(aux_data[,feature],main=feature,100)
+  }
+}
+
+list_outliers_features<-c("generation.biomass","generation.fossil.gas","generation.fossil.oil","generation.nuclear","generation.other.renewable")
+
+clean_data[clean_data[,"generation.biomass"]<150 & !(is.na(clean_data[,"generation.biomass"])),"generation.biomass"]<-NA
+clean_data[clean_data[,"generation.fossil.gas"]>=15000 & !(is.na(clean_data[,"generation.fossil.gas"])),"generation.fossil.gas"]<-NA
+clean_data[clean_data[,"generation.fossil.oil"]<150 & !(is.na(clean_data[,"generation.fossil.oil"])),"generation.fossil.oil"]<-NA
+clean_data[clean_data[,"generation.nuclear"]<3500 & !(is.na(clean_data[,"generation.nuclear"])),"generation.nuclear"]<-NA
+clean_data[clean_data[,"generation.other.renewable"]<50 & !(is.na(clean_data[,"generation.other.renewable"])),"generation.other.renewable"]<-NA
+
+````
+
+Hemos hecho un análisis de esas gráficas y vemos que solamente en las siguientes **_features_ tenemos outliers que deben ser reparados:** <br></br>
+- **generation.biomass**<br></br>
+- **generation.fossil.gas**<br></br>
+- **generation.fossil.oil**<br></br>
+- **generation.nuclear**<br></br>
+- **generation.other.renewable**<br></br>
+
+El resto se tratan de distribuciones normales multimodales, con ciertas anomalías interesantes, o distribuciones con una evolución exponencial de la frecuencia según el valor de la variable.<br></br>
+
+En el caso de las distribuciones multimodales tenemos la *feature* **generation.other** que quizá se podría dividir en 3 grupos de generación. De igual tenemos el ejemplo de bimodalidad en **generation.other.renewable**<br></br>
+
+Las anomalías interesantes las vemos en **generation.nuclear** o **generation.waste**. En la primera podríamos ver una mayor producción de energía nuclear, quizá porque hubiera una disminución de producción en el resto por falta de carbón, viento o sol. En la segunda vemos unos tímidos picos en lo que parece una distribución asimétrica, quizá por mayor cantidad de desecho disponible. Ambos ejemplos nos lleva a pensar: ¿existe una relación entre las diferentes fuentes de generación de energía? ¿Podemos ver cuándo ocurren esas "anomalías interesantes" y entender si se trata de mayor disposición del material para la generación: carbón, viento, luz solar, desechos, etc.?<br></br>
+
+Por último tenemos distribuciones extremas como **generation.fossil.gas** o **generation.hydro.pumped.storage.consumption**. En la primera *feature* la dispersión es pequeña y por tanto algunos valores quedan fuera de los quantiles formando parte de los *outliers*. En el otro caso tenemos que hay muchos días que no se genera energía con la técnica de agua  
+
+## Valores NA
+````{r}
+aux_data<-clean_data[,1:(length(clean_data)-2)] #Cogemos solamente los valores numéricos quitando las columnas de las variables categóricas del daytime y la season.
 
 for (feature in names(aux_data)){
     aux_data[!(is.na(aux_data[,feature])),feature]<-scale(aux_data[!(is.na(aux_data[,feature])),feature])
@@ -230,7 +263,6 @@ for (feature in names(aux_data)){
   if ((any(is.na(aux_data[,feature])))){
     aux_data[!(is.na(aux_data[,feature])),feature]<-scale(aux_data[!(is.na(aux_data[,feature])),feature])
     aux_data[,feature]<-kNN(aux_data,k=30)[,feature]
-    #clean_data[is.na(clean_data[,feature]),feature]<-aux_data[is.na(clean_data[,feature]),feature]
   }
 }
 
