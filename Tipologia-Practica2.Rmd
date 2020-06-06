@@ -6,8 +6,8 @@ output:
   html_document:
     highlight: default
     toc: yes
-    toc_depth: 3
-    #code_folding: hide
+    toc_depth: 4
+    code_folding: hide
     fig.show: hide
     number_sections: yes
     theme: cosmo
@@ -47,7 +47,7 @@ library(rpart)
 library(mltools)
 ````
 
-# 1- Carga y descripción del dataset elegido.
+# Carga y descripción del dataset elegido.
 
 ````{r}
 raw_data<-read.csv("energy_dataset.csv",stringsAsFactors = FALSE)
@@ -115,12 +115,12 @@ El dataset elegido es el energy_dataset de Kaggle (1). Contiene datos sobre la p
 - **price.actual**: Precio de la energía en el momento de la captura de los datos.
 
 
-Unas de las preguntas que intentaremos resolver son:
+Unas de las preguntas que intentaremos resolver son:<br></br>
 - **¿Cuál es el precio de la electricidad según su origen?**<br></br>
 - **¿Hay fuentes de energías que estadísticamente encarecen el precio final?**<br></br>
 
 
-# 2- Selección de datos de interés.
+# Selección de datos de interés.
 
 ## Desechar variables constantes
 Podemos ver en el summary anterior que hay una serie de variables que solo contienen cero y elementos vacíos.
@@ -204,11 +204,10 @@ treat_data<-subset(treat_data,select = -c(generation.hydro.pumped.storage.aggreg
 ````
 
 
-# 3- Limpieza de datos
+# Limpieza de datos
 
 Tras haber seleccionado las columnas que vamos a emplear seguimos con una limpieza por variables de valores *outliers*, valores vacíos y errores que podamos encontrar.
 
-HAY QUE REVISAR ESTE PROCESO PORQUE PARECE QUE ESTAMOS ROMPIENDO LOS DATOS.
 
 ## Valores outliers
 
@@ -251,17 +250,35 @@ Las anomalías interesantes las vemos en **generation.nuclear** o **generation.w
 Por último tenemos distribuciones extremas como **generation.fossil.gas** o **generation.hydro.pumped.storage.consumption**. En la primera *feature* la dispersión es pequeña y por tanto algunos valores quedan fuera de los quantiles formando parte de los *outliers*. En el otro caso tenemos que hay muchos días que no se genera energía con la técnica de agua  
 
 ## Valores NA
+
+Vamos a imputar valores a los NA que tenía el *dataset* de base y a los outliers que hemos considerado para cambiarlos a NA. De primeras nos gustaría mostrar el siguiente histograma sobre cómo se distribuye los valores de generación de energía nuclear.
+
+````{r}
+hist(aux_data[,"generation.nuclear"],main="generation.nuclear",100)
+````
+
+Para imputar nuevos valores vamos a calcularlos usando un modelo predictivo con el algormitmo kNN que nos dará el valor esperado según los registros más similares a este según las otras features. Esa similitud se calcula en base de la distancia euclidiana entre registros y al usarse el valor numérico de cada variable necesitamos que todas estén en un dominio numérico similar, con lo que hacemos un proceso de normalización de las variables numéricas.
+
 ````{r}
 aux_data<-clean_data[,1:(length(clean_data)-2)] #Cogemos solamente los valores numéricos quitando las columnas de las variables categóricas del daytime y la season.
 
 for (feature in names(aux_data)){
     aux_data[!(is.na(aux_data[,feature])),feature]<-scale(aux_data[!(is.na(aux_data[,feature])),feature])
 }
+````
 
+Tras este proceso de normalización vemos cómo los valores cambian y visualmente la distribución puede tener diferencias. Pero matemáticamente no tendríamos que tener una pérdida de información en nuestros datos.
 
+````{r}
+hist(aux_data[,"generation.nuclear"],main="generation.nuclear",100)
+````
+
+Estando el conjunto de datos en la misma escala, pasamos finalmente a imputar valores a los registros NA.
+
+````{r}
 for (feature in names(aux_data)){
   if ((any(is.na(aux_data[,feature])))){
-    aux_data[!(is.na(aux_data[,feature])),feature]<-scale(aux_data[!(is.na(aux_data[,feature])),feature])
+    #aux_data[!(is.na(aux_data[,feature])),feature]<-scale(aux_data[!(is.na(aux_data[,feature])),feature])
     aux_data[,feature]<-kNN(aux_data,k=30)[,feature]
   }
 }
@@ -269,9 +286,7 @@ for (feature in names(aux_data)){
 scl_clean_data<-aux_data
 scl_clean_data[,"season"]<-clean_data[,"season"]
 scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
-
 ````
-Las columnas sin valores porque o bien son todos 0, o bien NA se eliminan. Después de las tareas de limpieza y selección de datos, disponemos de la siguiente lista de campos:
 
 
 ## Sumario del dataset preprocesado
@@ -303,46 +318,94 @@ summary(scl_clean_data)
 - daytime
 - season
 
-# 4- Análisis
+# Análisis
 
-## 4.1 - Decisión de los datos a comparar
+## Decisión de los datos a comparar
 
-## 4.2 - Análisis de varianza del dataset
+## Análisis de varianza del dataset
 
-
-
-````{r}
+````{r include=FALSE,echo=FALSE,message=FALSE,warning=FALSE}
 for (i in names(aux_data)){hist(aux_data[,i],100,main = i)}
 ````
 
 
-Se hace una regresión lineal del precio para ver la evolución de la varianza y estudiar la homocedasticidad.
+Se hace una regresión lineal del precio para ver la evolución de los residuos y estudiar la homocedasticidad. Cuando los residuos no vayan aumentando con precios mayores, tendremos una varianza constante y por lo tanto nuestro *dataset* cumplirá la propiedad de homocedasticidad.
 ````{r}
 lm_price<-lm(price.actual ~ . ,data = aux_data)
 rsquarelm<-summary(lm_price)$adj.r.squared
+
+aux_data_res_lm_price<-data.frame(prices=aux_data$price.actual,residuals=summary(lm_price)$residual)
+aux_res_lm_price<-lm(residuals ~ prices ,data = aux_data_res_lm_price)
+aux_res_lm_price_x_data<-data.frame(prices=seq(-5,5,0.05))
+aux_res_lm_price_y_data<-predict(aux_res_lm_price,newdata=aux_res_lm_price_x_data)
+
+plot(aux_data_res_lm_price$prices,aux_data_res_lm_price$residuals,xlab="Precios",ylab="Residuos")
+lines(aux_res_lm_price_x_data$prices,aux_res_lm_price_y_data,col="red",lwd=4)
+lines(c(-4,4),c(-3,3),col="blue",lwd=4)
+legend(-3, legend=c("Regresión de los valores de los residuos","Línea imaginaria"), col=c("red","blue"), lty=1:2)
+````
+
+Como prueba visual sobre dicha línea imaginaria se debe cumplir equidistancia entre los residuos por abajo y por arriba para que se cumpla la propiedad de homocedasticidad.
+
+¿POR QUÉ EXISTE ESA SEGUNDA LINEA ALREDEDOR DEL VALOR NULO DE LOS RESIDUOS? ¿CUALES SON LOS ""TIPOS"" DE REGISTROS QUE MEJOR REGRESIONA?
+
+
+## Análisis predictivo 
+
+Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* (N) sea muy bajo para que el acierto en las poblaciones sea mayor. Para hacer la evaluación del modelo partido los datos en un set para entrenamiento y otro para testeo.
+
+````{r}
+x_train<-aux_data[1:(nrow(aux_data)*0.7),]
+x_test<-aux_data[(nrow(aux_data)*0.7):nrow(aux_data),]
+````
+
+### Entrenamiento
+
+Entrenaremos el modelo ajustando los parámetros para que sea preciso. En la evaluación podremos ver si estamos sobreentrenando o si el modelo es suficientemente bueno.
+````{r}
+tree_model<-rpart(price.actual ~ ., data=x_train,control=rpart.control(minsplit=2, minbucket = 1,cp=0.00001))
+
+nodes <- as.numeric(rownames(tree_model$frame))
+
+max_depth_tree_model<-max(rpart:::tree.depth(nodes))
+
+````
+
+Aquí tenemos una parte del modelo, hemos hecho *pruning* porque el árbol original tiene (N+1) ramas con una profundidad máxima de `r max_depth_tree_model` y `r length(tree_model$splits)` particiones; con lo que queda claro el motivo por el que recortar el árbol a mostrar.
+
+````{r}
+brief_tree_model<-prune.rpart(tree_model,cp=0.01)
+
+fancyRpartPlot(brief_tree_model,caption="Extracto de la totalidad del árbol")
 ````
 
 
-Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* sea muy bajo para que el acierto en las poblaciones sea mayor.
-````{r}
-x_train<-aux_data[1:(nrow(aux_data)*0.7),] #x_train
-x_test<-aux_data[(nrow(aux_data)*0.7):nrow(aux_data),] #x_test
-tree_model<-rpart(price.actual ~ ., data=x_train,control=rpart.control(minsplit=2, minbucket = 1,cp=0.00001))
+### Evaluación del modelo
 
+Ahora hacemos la predicción del precio con el modelo y el conjunto de datos de test.
+````{r}
 prices_pred<-predict(tree_model,newdata=x_test)
 prices_real<-x_test$price.actual
 ````
 
+Teniendo los valores esperados y reales podemos calcular una de las métricas que identifica la calidad del modelo, el **root mean square error**.
 
-Evaluación del modelo:
 ````{r}
 rmse_tree_model<-rmse(preds = prices_pred,actuals = prices_real)
 ````
 
-Podemos ver que el modelo tiene un *root mean square error* de: `r round(rmse_tree_model,3)`, teniendo en cuenta que los valores escalados van entre `r min(x_train$price.actual)` y `r max(x_train$price.actual)` ese valor medio del error no parece demasiado para un módelo con una configuración tan simple.
+Podemos ver que el modelo tiene un **root mean square error** de: `r round(rmse_tree_model,3)`, teniendo en cuenta que los valores escalados van entre `r min(x_train$price.actual)` y `r max(x_train$price.actual)` ese valor medio del error no parece demasiado para un módelo con una configuración tan simple.
 
+### Feature importance
 
+Más allá de la calidad del árbol podemos ver las variables más importantes a la hora de hacer la regresión. Esta importancia se estima por la cantidad de divisiones que se han hecho teniendo en cuenta esa variable. Dado que el algoritmo tiene en cuenta la variable y la condición para la que se puede tener una mayor minimización de la entropía, se entiende que la variable elegida es más relevante que el resto. Por ello las variables con mayor frecuencia de uso en las divisiones se les considera como las más importantes en todo el árbol.
 
+````{r}
+sum_nodes_tree<-sum(tree_model$variable.importance)
+feature_importance_tree_model_percentage<-(100*tree_model$variable.importance/sum_nodes_tree)
+
+kable(feature_importance_tree_model_percentage)
+````
 
 
 
@@ -358,3 +421,5 @@ Podemos ver que el modelo tiene un *root mean square error* de: `r round(rmse_tr
 (7) https://stats.stackexchange.com/questions/25839/logistic-regression-in-r-returning-na-values
 (8) https://en.wikipedia.org/wiki/Hosmer%E2%80%93Lemeshow_test 
 (9) https://www.statisticshowto.com/hosmer-lemeshow-test/ 
+(N) http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/ 
+(N+1) https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model
