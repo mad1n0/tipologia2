@@ -24,6 +24,7 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("scales",repos = "http://cran.us.r-project.org")
 #install.packages("gmodels",repos = "http://cran.us.r-project.org")
 #install.packages("faraway",repos = "http://cran.us.r-project.org")
+#install.packages("nortest",repos = "http://cran.us.r-project.org")
 #list.of.packages <- c("VIM")
 #new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 #if(length(new.packages)) install.packages(new.packages)
@@ -45,6 +46,7 @@ library(car)
 library(rattle)
 library(rpart)
 library(mltools)
+library(nortest)
 ````
 
 # Carga y descripción del dataset elegido.
@@ -201,7 +203,7 @@ El dataset elegido es el energy_dataset de Kaggle (1). Contiene datos sobre la p
 
 
 Unas de las preguntas que intentaremos resolver son:<br></br>
-- **¿Cuál es el precio de la electricidad según su origen?**<br></br>
+- **¿Cuál es el precio de la electricidad sabiendo la generación y su origen?**<br></br>
 - **¿Hay fuentes de energías que estadísticamente encarecen el precio final?**<br></br>
 
 
@@ -432,7 +434,10 @@ scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
 
 ## Decisión de los datos a comparar
 
-## Análisis de varianza del dataset
+## Análisis de varianza y la normalidad del dataset
+Antes de entrar en el análisis predictivo, vamos a estudiar la normalidad y la homocedasticidad. Ya que se presuponen esas propiedades a las variables que se les vaya a aplicar pruebas por contraste de hipótesis paramétricas u otros análisis.
+
+### Comprobación de homocedasticidad para la variable dependiente
 
 ````{r include=FALSE,echo=FALSE,message=FALSE,warning=FALSE}
 for (i in names(aux_data)){hist(aux_data[,i],100,main = i)}
@@ -459,8 +464,60 @@ Como prueba visual sobre dicha línea imaginaria se debe cumplir equidistancia e
 
 ¿POR QUÉ EXISTE ESA SEGUNDA LINEA ALREDEDOR DEL VALOR NULO DE LOS RESIDUOS? ¿CUALES SON LOS ""TIPOS"" DE REGISTROS QUE MEJOR REGRESIONA?
 
+### Comprobación de homocedasticidad de todas las variables explicativas
 
-## Análisis predictivo 
+
+````{r}
+
+for (name_i in names(aux_data)){
+  for (name_j in names(aux_data)){
+    if (name_j!=name_i){
+      p_value_fligner<-fligner.test(aux_data[,name_i],aux_data[,name_j])$p.value
+      if (p_value_fligner>0.05){
+        print(name_i)
+        print(name_j)
+        print(p_value_fligner)
+      }
+    }
+  }
+}
+
+
+````
+
+
+
+### Comprobación de la normalidad de todas las variables
+Anderson-Darling (N+2)
+
+````{r}
+
+for (i in names(aux_data)){
+  p_value_adtest<-ad.test(aux_data[,i])$p.value
+  if (p_value_adtest>0.05){
+    print(p_value_adtest)  
+  }
+}
+
+for (i in names(aux_data)){
+  p_value_adtest<-shapiro.test(aux_data[1:3000,i])$p.value
+  if (p_value_adtest>0.05){
+    print(p_value_adtest)  
+  }
+}
+
+````
+
+
+## pruebas por contraste de hipótesis paramétricas
+
+### ¿Podemos decir que las energías renovables o alternativas generan una electricidad más barata?
+
+### ¿Hay fuentes de energías que estadísticamente encarecen el precio final?
+
+
+
+## Análisis predictivo. ¿Cuál es el precio de la electricidad sabiendo la generación y su origen?
 
 Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* (N) sea muy bajo para que el acierto en las poblaciones sea mayor. Para hacer la evaluación del modelo partido los datos en un set para entrenamiento y otro para testeo.
 
@@ -546,3 +603,4 @@ kable(feature_importance_tree_model_percentage)
 (9) https://www.statisticshowto.com/hosmer-lemeshow-test/ 
 (N) http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/ 
 (N+1) https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model
+(N+2) https://www.itl.nist.gov/div898/handbook/prc/section2/prc213.htm
