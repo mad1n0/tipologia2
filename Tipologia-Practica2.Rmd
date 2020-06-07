@@ -51,35 +51,76 @@ library(mltools)
 
 ````{r}
 raw_data<-read.csv("energy_dataset.csv",stringsAsFactors = FALSE)
-summary(raw_data)
+#summary(raw_data)
 ````
 
 ## Resumen cuantitativo del *dataset* escogido:
 
 
-
+Las variables numéricas tienen las siguientes características:
 
 ````{r}
-tab_stats_descr<-data.frame()
+#Hemos usado una representación propia ya que la función summary generaba demasiado texto
 
-tab_stats_data
+tab_stats_data<-data.frame(c(vector(),1:nrow(raw_data)))
 
+for (feature in names(raw_data)){
+  if (class(raw_data[,feature])=="numeric"){
+    tab_stats_data[,feature]<-raw_data[,feature]
+  }
+}
+tab_stats_data<-tab_stats_data[,-1]
+
+tab_stats_descr<-data.frame(c(vector(),1:length(names(tab_stats_data))))
+rownames(tab_stats_descr)<-names(tab_stats_data)
+
+#tab_stats_data
+i<-1
 for (feature in names(tab_stats_data)){
-  aux_box_feature<-boxplot.stats(tab_stats_data[,feature])
-  tab_stats_descr[,"Median"]<-aux_box_feature[3]
-  tab_stats_descr[,"Max"]<-aux_box_feature[6]
-  tab_stats_descr[,"Min"]<-aux_box_feature[1]
-  tab_stats_descr[,"1st Quantile"]<-aux_box_feature[2]
-  tab_stats_descr[,"3rd Quantile"]<-aux_box_feature[5]
-  tab_stats_descr[,"Count NAs"]<-aux_box_feature[7]
+  aux_box_feature<-boxplot.stats(tab_stats_data[,feature])$stats
+  tab_stats_descr[i,"Median"]<-aux_box_feature[3]
+  tab_stats_descr[i,"Median absolute deviation"]<-mad(tab_stats_data[,feature],na.rm=T)
+  tab_stats_descr[i,"Max"]<-max(tab_stats_data[,feature],na.rm=T)
+  tab_stats_descr[i,"Min"]<-min(tab_stats_data[,feature],na.rm=T)
+  tab_stats_descr[i,"1st Quantile"]<-aux_box_feature[1]
+  tab_stats_descr[i,"3rd Quantile"]<-aux_box_feature[4]
+  tab_stats_descr[i,"Count NAs"]<-length((tab_stats_data[is.na(tab_stats_data[,feature]),feature]))
+  i<-i+1
 }
 
-
-
+tab_stats_descr<-round(tab_stats_descr[,-1],1)
 ````
 
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#statsfeatures" role="button" aria-expanded="false" aria-controls="statsfeatures">
+    Tabla de características estadísticas de las variables
+  </a>
+</p>
+<div class="collapse" id="statsfeatures">
+  <div class="card card-body">
+  
+````{r}
+kable(tab_stats_descr)
+````
+
+  </div>
+</div>
 
 
+Además de las variables numéricas tenemos algunas como es la fecha u aquellas que solo contienen NAs
+````{r}
+summ_stats_data<-data.frame(c(vector(),1:nrow(raw_data)))
+
+
+for (feature in names(raw_data)){
+  if (class(raw_data[,feature])!="numeric"){
+    summ_stats_data[,feature]<-raw_data[,feature]
+  }
+}
+summ_stats_data<-summ_stats_data[,-1]
+
+summary(summ_stats_data)
+````
 
 
 
@@ -87,6 +128,14 @@ for (feature in names(tab_stats_data)){
 ## Descripción de las variables y su contenido
 
 El dataset elegido es el energy_dataset de Kaggle (1). Contiene datos sobre la producción energética dee cada uno de los tipos de energía listados en las columnas y el coste de la compra de energía en cada uno de los instantes en los que se captura la información del dataset, durante un plazo de tiempo de tres años. Con él tenemos la intención de identificar qué factores y en qué medida la generación no controlable de energía renovable y la necesidad de consumo energético, así como la demanda energética, conducen a una fluctuación del precio de la energía, en qué momentos y estaciones. El dataset cuenta con los siguientes campos:
+
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#descriptionfeatures" role="button" aria-expanded="false" aria-controls="descriptionfeatures">
+    Descripción de todas las variables
+  </a>
+</p>
+<div class="collapse" id="descriptionfeatures">
+  <div class="card card-body">
 
 - **Time**: Variable timestamp, actualizada cada hora. entre 1 de enero de 2015 y 2019. Incluye fecha y hora, tipo char.
 
@@ -145,6 +194,10 @@ El dataset elegido es el energy_dataset de Kaggle (1). Contiene datos sobre la p
 - **price.day.ahead**: Precio de la energía en el caso de hacer una compra anticipada para el día siguiente.
 
 - **price.actual**: Precio de la energía en el momento de la captura de los datos.
+
+
+  </div>
+</div>
 
 
 Unas de las preguntas que intentaremos resolver son:<br></br>
@@ -243,20 +296,48 @@ Tras haber seleccionado las columnas que vamos a emplear seguimos con una limpie
 
 ## Valores outliers
 
+En esta sección vamos a analizar los valores outliers representando su distribución junto a su boxplot. Con ello concluiremos cuales son relevantes y deben dejarse y cuales tendrían que ser tratados.
 ````{r}
 clean_data<-treat_data
 
 aux_data<-clean_data[,1:(length(clean_data)-2)] #Cogemos solamente los valores numéricos quitando las columnas de las variables categóricas del daytime y la season.
 ````
-````{r fig.width=4, fig.height=6,echo=FALSE,out.extra='style="float:left"'}
+
+### Gráficas
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#outliersplots" role="button" aria-expanded="false" aria-controls="outliersplots">
+    Gráficas de las variables con outliers
+  </a>
+</p>
+<div class="collapse" id="outliersplots">
+  <div class="card card-body">
+````{r fig.width=4, fig.height=4,out.extra='style="float:center;padding:-60px -15px -10px -60px;margin:-50px -20px -50px -20px"'}
 for (feature in names(aux_data)){
   aux_out<-boxplot.stats(aux_data[,feature])$out
   if (length(aux_out)>0){
-    boxplot(aux_data[,feature],main=feature,cex.main=0.85)
-    hist(aux_data[,feature],main=feature,100,xlab = feature,cex.main=0.85)
+    boxplot(aux_data[,feature],main=feature,cex.main=0.8,yaxt="n",xaxt="n",cex.lab=0.8,line=0,frame=FALSE)
+    #par(mar = c(1,1,1,1))
+    hist(aux_data[,feature],main="",30,cex.lab=0.8,xlab="",ylab = "",xaxt="n",yaxt="n")
+    #hist(aux_data[,feature],main=feature,100,xlab = feature,cex.main=0.85,cex.lab=0.7,cex.axis=0.7,xaxt="n")
+    #M_aux<-max(aux_data[,feature],na.rm = T)
+    #m_aux<-min(aux_data[,feature],na.rm = T)
+    #axis(side=1, at=round(seq(m_aux,M_aux,(M_aux-m_aux)/30),2), labels=round(seq(m_aux,M_aux,(M_aux-m_aux)/30),2),cex.axis=0.7,las=3)
+
   }
 }
 ````
+  </div>
+</div>
+
+
+### Tratamiento de los outliers
+
+Hemos hecho un análisis de esas gráficas y vemos que solamente en las siguientes **_features_ tenemos outliers que deben ser reparados:** <br></br>
+- **generation.biomass**<br></br>
+- **generation.fossil.gas**<br></br>
+- **generation.fossil.oil**<br></br>
+- **generation.nuclear**<br></br>
+- **generation.other.renewable**<br></br>
 
 ````{r}
 list_outliers_features<-c("generation.biomass","generation.fossil.gas","generation.fossil.oil","generation.nuclear","generation.other.renewable")
@@ -269,12 +350,6 @@ clean_data[clean_data[,"generation.other.renewable"]<50 & !(is.na(clean_data[,"g
 
 ````
 
-Hemos hecho un análisis de esas gráficas y vemos que solamente en las siguientes **_features_ tenemos outliers que deben ser reparados:** <br></br>
-- **generation.biomass**<br></br>
-- **generation.fossil.gas**<br></br>
-- **generation.fossil.oil**<br></br>
-- **generation.nuclear**<br></br>
-- **generation.other.renewable**<br></br>
 
 El resto se tratan de distribuciones normales multimodales, con ciertas anomalías interesantes, o distribuciones con una evolución exponencial de la frecuencia según el valor de la variable.<br></br>
 
@@ -327,7 +402,7 @@ scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
 ## Sumario del dataset preprocesado
 
 ````{r}
-summary(scl_clean_data)
+#summary(scl_clean_data)
 ````
 
 - Time
@@ -439,10 +514,23 @@ Más allá de la calidad del árbol podemos ver las variables más importantes a
 sum_nodes_tree<-sum(tree_model$variable.importance)
 feature_importance_tree_model_percentage<-(100*tree_model$variable.importance/sum_nodes_tree)
 
-kable(feature_importance_tree_model_percentage)
 ````
 
 
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#featureimportance" role="button" aria-expanded="false" aria-controls="featureimportance">
+    Tabla con la importancia de cada una de las variables según el árbol de regresión
+  </a>
+</p>
+<div class="collapse" id="featureimportance">
+  <div class="card card-body">
+
+````{r}
+kable(feature_importance_tree_model_percentage)
+````
+
+  </div>
+</div>
 
 
 
