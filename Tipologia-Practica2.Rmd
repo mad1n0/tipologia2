@@ -54,6 +54,38 @@ raw_data<-read.csv("energy_dataset.csv",stringsAsFactors = FALSE)
 summary(raw_data)
 ````
 
+## Resumen cuantitativo del *dataset* escogido:
+
+
+
+
+````{r}
+tab_stats_descr<-data.frame()
+
+tab_stats_data
+
+for (feature in names(tab_stats_data)){
+  aux_box_feature<-boxplot.stats(tab_stats_data[,feature])
+  tab_stats_descr[,"Median"]<-aux_box_feature[3]
+  tab_stats_descr[,"Max"]<-aux_box_feature[6]
+  tab_stats_descr[,"Min"]<-aux_box_feature[1]
+  tab_stats_descr[,"1st Quantile"]<-aux_box_feature[2]
+  tab_stats_descr[,"3rd Quantile"]<-aux_box_feature[5]
+  tab_stats_descr[,"Count NAs"]<-aux_box_feature[7]
+}
+
+
+
+````
+
+
+
+
+
+
+
+## Descripción de las variables y su contenido
+
 El dataset elegido es el energy_dataset de Kaggle (1). Contiene datos sobre la producción energética dee cada uno de los tipos de energía listados en las columnas y el coste de la compra de energía en cada uno de los instantes en los que se captura la información del dataset, durante un plazo de tiempo de tres años. Con él tenemos la intención de identificar qué factores y en qué medida la generación no controlable de energía renovable y la necesidad de consumo energético, así como la demanda energética, conducen a una fluctuación del precio de la energía, en qué momentos y estaciones. El dataset cuenta con los siguientes campos:
 
 - **Time**: Variable timestamp, actualizada cada hora. entre 1 de enero de 2015 y 2019. Incluye fecha y hora, tipo char.
@@ -215,15 +247,18 @@ Tras haber seleccionado las columnas que vamos a emplear seguimos con una limpie
 clean_data<-treat_data
 
 aux_data<-clean_data[,1:(length(clean_data)-2)] #Cogemos solamente los valores numéricos quitando las columnas de las variables categóricas del daytime y la season.
-
+````
+````{r fig.width=4, fig.height=6,echo=FALSE,out.extra='style="float:left"'}
 for (feature in names(aux_data)){
   aux_out<-boxplot.stats(aux_data[,feature])$out
   if (length(aux_out)>0){
-    boxplot(aux_data[,feature],main=feature)
-    hist(aux_data[,feature],main=feature,100)
+    boxplot(aux_data[,feature],main=feature,cex.main=0.85)
+    hist(aux_data[,feature],main=feature,100,xlab = feature,cex.main=0.85)
   }
 }
+````
 
+````{r}
 list_outliers_features<-c("generation.biomass","generation.fossil.gas","generation.fossil.oil","generation.nuclear","generation.other.renewable")
 
 clean_data[clean_data[,"generation.biomass"]<150 & !(is.na(clean_data[,"generation.biomass"])),"generation.biomass"]<-NA
