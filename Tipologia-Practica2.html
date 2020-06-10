@@ -482,7 +482,7 @@ summary {
 <li><a href="#comprobación-de-homocedasticidad-de-todas-las-variables-explicativas"><span class="toc-section-number">4.2.2</span> Comprobación de homocedasticidad de todas las variables explicativas</a></li>
 <li><a href="#comprobación-de-la-normalidad-de-todas-las-variables"><span class="toc-section-number">4.2.3</span> Comprobación de la normalidad de todas las variables</a></li>
 </ul></li>
-<li><a href="#pruebas-estadísticas"><span class="toc-section-number">4.3</span> Pruebas estadísticas</a><ul>
+<li><a href="#pruebas-por-contraste-de-hipótesis-paramétricas"><span class="toc-section-number">4.3</span> pruebas por contraste de hipótesis paramétricas</a><ul>
 <li><a href="#podemos-decir-que-las-energías-renovables-o-alternativas-generan-una-electricidad-más-barata"><span class="toc-section-number">4.3.1</span> ¿Podemos decir que las energías renovables o alternativas generan una electricidad más barata?</a></li>
 <li><a href="#hay-fuentes-de-energías-que-estadísticamente-encarecen-el-precio-final"><span class="toc-section-number">4.3.2</span> ¿Hay fuentes de energías que estadísticamente encarecen el precio final?</a></li>
 </ul></li>
@@ -1066,6 +1066,7 @@ scl_clean_data[,&quot;daytime&quot;]&lt;-clean_data[,&quot;daytime&quot;]</code>
 </div>
 <div id="análisis-de-varianza-y-la-normalidad-del-dataset" class="section level2">
 <h2><span class="header-section-number">4.2</span> Análisis de varianza y la normalidad del dataset</h2>
+<p>Antes de entrar en el análisis predictivo, vamos a estudiar la normalidad y la homocedasticidad. Ya que se presuponen esas propiedades a las variables que se les vaya a aplicar pruebas por contraste de hipótesis paramétricas u otros análisis.</p>
 <div id="comprobación-de-homocedasticidad-para-la-variable-dependiente" class="section level3">
 <h3><span class="header-section-number">4.2.1</span> Comprobación de homocedasticidad para la variable dependiente</h3>
 <p>Se hace una regresión lineal del precio para ver la evolución de los residuos y estudiar la homocedasticidad. Cuando los residuos no vayan aumentando con precios mayores, tendremos una varianza constante y por lo tanto nuestro <em>dataset</em> cumplirá la propiedad de homocedasticidad.</p>
@@ -1087,13 +1088,330 @@ legend(-3, legend=c(&quot;Regresión de los valores de los residuos&quot;,&quot;
 </div>
 <div id="comprobación-de-homocedasticidad-de-todas-las-variables-explicativas" class="section level3">
 <h3><span class="header-section-number">4.2.2</span> Comprobación de homocedasticidad de todas las variables explicativas</h3>
+<pre class="r"><code>for (name_i in names(aux_data)){
+  for (name_j in names(aux_data)){
+    if (name_j!=name_i){
+      p_value_fligner&lt;-fligner.test(aux_data[,name_i],aux_data[,name_j])$p.value
+      if (p_value_fligner&gt;0.05){
+        print(name_i)
+        print(name_j)
+        print(p_value_fligner)
+      }
+    }
+  }
+}</code></pre>
+<pre><code>## [1] &quot;generation.biomass&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.9699906
+## [1] &quot;generation.biomass&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.7588138
+## [1] &quot;generation.biomass&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.9894278
+## [1] &quot;generation.biomass&quot;
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] 0.1469154
+## [1] &quot;generation.biomass&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.9926173
+## [1] &quot;generation.biomass&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 0.5007944
+## [1] &quot;generation.biomass&quot;
+## [1] &quot;price.actual&quot;
+## [1] 0.7184474
+## [1] &quot;generation.fossil.brown.coal.lignite&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.9104771
+## [1] &quot;generation.fossil.brown.coal.lignite&quot;
+## [1] &quot;generation.solar&quot;
+## [1] 0.9999999
+## [1] &quot;generation.fossil.brown.coal.lignite&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.9998068
+## [1] &quot;generation.fossil.brown.coal.lignite&quot;
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] 0.9980988
+## [1] &quot;generation.fossil.brown.coal.lignite&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.9983947
+## [1] &quot;generation.fossil.brown.coal.lignite&quot;
+## [1] &quot;total.load.forecast&quot;
+## [1] 1
+## [1] &quot;generation.fossil.brown.coal.lignite&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 1
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.7158393
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] &quot;generation.solar&quot;
+## [1] 0.1649346
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.9961258
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] 0.3059393
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.9973997
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] &quot;total.load.forecast&quot;
+## [1] 0.9214957
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 0.989186
+## [1] &quot;generation.fossil.oil&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.9996008
+## [1] &quot;generation.fossil.oil&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.1362591
+## [1] &quot;generation.fossil.oil&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.569217
+## [1] &quot;generation.fossil.oil&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.875275
+## [1] &quot;generation.hydro.run.of.river.and.poundage&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.9978553
+## [1] &quot;generation.hydro.run.of.river.and.poundage&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.9990185
+## [1] &quot;generation.hydro.run.of.river.and.poundage&quot;
+## [1] &quot;total.load.forecast&quot;
+## [1] 0.8621827
+## [1] &quot;generation.hydro.run.of.river.and.poundage&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 0.7709381
+## [1] &quot;generation.hydro.run.of.river.and.poundage&quot;
+## [1] &quot;price.actual&quot;
+## [1] 0.5643854
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.6982767
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.2005102
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.7120285
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 1
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.9999981
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;generation.solar&quot;
+## [1] 0.3721661
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 1
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] 0.5966899
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.9999962
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;total.load.forecast&quot;
+## [1] 0.9990312
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 0.9999997
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;price.actual&quot;
+## [1] 0.2661874
+## [1] &quot;generation.nuclear&quot;
+## [1] &quot;daytime_dis&quot;
+## [1] 0.0705989
+## [1] &quot;generation.other&quot;
+## [1] &quot;generation.solar&quot;
+## [1] 0.1001417
+## [1] &quot;generation.other&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.6623653
+## [1] &quot;generation.other&quot;
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] 0.393674
+## [1] &quot;generation.other&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.9281445
+## [1] &quot;generation.other&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 0.07773463
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 1
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.9999146
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 1
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] 0.3950593
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 1
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;total.load.forecast&quot;
+## [1] 0.2864377
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 0.9999974
+## [1] &quot;generation.other.renewable&quot;
+## [1] &quot;price.actual&quot;
+## [1] 0.7534418
+## [1] &quot;generation.solar&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.8630092
+## [1] &quot;generation.waste&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.05553062
+## [1] &quot;generation.wind.onshore&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.896145
+## [1] &quot;generation.wind.onshore&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.3567446
+## [1] &quot;generation.wind.onshore&quot;
+## [1] &quot;price.actual&quot;
+## [1] 0.1845143
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.9570883
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.9152492
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 0.3564686
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] &quot;price.actual&quot;
+## [1] 0.1618763
+## [1] &quot;total.load.forecast&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 1
+## [1] &quot;total.load.forecast&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.9999999
+## [1] &quot;total.load.forecast&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 1
+## [1] &quot;total.load.actual&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 1
+## [1] &quot;total.load.actual&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.9999999
+## [1] &quot;total.load.actual&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 1
+## [1] &quot;price.day.ahead&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.9998916
+## [1] &quot;price.actual&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 0.9996453
+## [1] &quot;price.actual&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 0.06497527
+## [1] &quot;price.actual&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 0.09885588
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;generation.fossil.gas&quot;
+## [1] 1
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 1
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;generation.hydro.run.of.river.and.poundage&quot;
+## [1] 0.9947257
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 1
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 1
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 1
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;total.load.forecast&quot;
+## [1] 0.9999997
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 0.9999453
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;price.day.ahead&quot;
+## [1] 1
+## [1] &quot;daytime_dis&quot;
+## [1] &quot;price.actual&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;generation.fossil.gas&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;generation.fossil.hard.coal&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;generation.hydro.pumped.storage.consumption&quot;
+## [1] 0.06031448
+## [1] &quot;season_dis&quot;
+## [1] &quot;generation.hydro.water.reservoir&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;generation.solar&quot;
+## [1] 0.99999
+## [1] &quot;season_dis&quot;
+## [1] &quot;generation.wind.onshore&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;forecast.solar.day.ahead&quot;
+## [1] 0.9999986
+## [1] &quot;season_dis&quot;
+## [1] &quot;forecast.wind.onshore.day.ahead&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;total.load.forecast&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;total.load.actual&quot;
+## [1] 1
+## [1] &quot;season_dis&quot;
+## [1] &quot;price.actual&quot;
+## [1] 0.9989918
+## [1] &quot;season_dis&quot;
+## [1] &quot;daytime_dis&quot;
+## [1] 0.9999482</code></pre>
 </div>
 <div id="comprobación-de-la-normalidad-de-todas-las-variables" class="section level3">
 <h3><span class="header-section-number">4.2.3</span> Comprobación de la normalidad de todas las variables</h3>
+<p>Anderson-Darling (N+2)</p>
+<pre class="r"><code>for (i in names(aux_data)){
+  p_value_adtest&lt;-ad.test(aux_data[,i])$p.value
+  if (p_value_adtest&gt;0.05){
+    print(p_value_adtest)  
+  }
+}
+
+for (i in names(aux_data)){
+  p_value_adtest&lt;-shapiro.test(aux_data[1:3000,i])$p.value
+  if (p_value_adtest&gt;0.05){
+    print(p_value_adtest)  
+  }
+}</code></pre>
 </div>
 </div>
-<div id="pruebas-estadísticas" class="section level2">
-<h2><span class="header-section-number">4.3</span> Pruebas estadísticas</h2>
+<div id="pruebas-por-contraste-de-hipótesis-paramétricas" class="section level2">
+<h2><span class="header-section-number">4.3</span> pruebas por contraste de hipótesis paramétricas</h2>
 <div id="podemos-decir-que-las-energías-renovables-o-alternativas-generan-una-electricidad-más-barata" class="section level3">
 <h3><span class="header-section-number">4.3.1</span> ¿Podemos decir que las energías renovables o alternativas generan una electricidad más barata?</h3>
 </div>
@@ -1253,7 +1571,7 @@ feature_importance_tree_model_percentage&lt;-(100*tree_model$variable.importance
 <li><a href="https://www.statisticshowto.com/hosmer-lemeshow-test/" class="uri">https://www.statisticshowto.com/hosmer-lemeshow-test/</a></li>
 </ol>
 <ol start="14" style="list-style-type: upper-alpha">
-<li><a href="http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/" class="uri">http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/</a> (N+1) <a href="https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model" class="uri">https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model</a></li>
+<li><a href="http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/" class="uri">http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/</a> (N+1) <a href="https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model" class="uri">https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model</a> (N+2) <a href="https://www.itl.nist.gov/div898/handbook/prc/section2/prc213.htm" class="uri">https://www.itl.nist.gov/div898/handbook/prc/section2/prc213.htm</a></li>
 </ol>
 </div>
 
