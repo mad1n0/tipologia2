@@ -437,6 +437,78 @@ scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
 ## Análisis de varianza y la normalidad del dataset
 Antes de entrar en el análisis predictivo, vamos a estudiar la normalidad y la homocedasticidad. Ya que se presuponen esas propiedades a las variables que se les vaya a aplicar pruebas por contraste de hipótesis paramétricas u otros análisis.
 
+Tenemos que entender que la normalidad es una propiedad única de cada variable y la homocedasticidad ocurre sobre la regresión de una variable dependiente frente a una o varias variables explicativas. La homocedasticidad ocurre cuando la varianza es constante bajo variaciones de la variable dependiente. Por todo esto, buscaremos normalidad en todas las variables y buscaremos el conjunto de variables que cumplen homocedasticidad al regresionar el precio de la electricidad. Y es que nuestro objetivo es estudiar la evolución del precio intentando responder, por ejemplo: su relación con la fuente generadora de energía, si existe una que afecte más que el resto o si tiene alguna relación con la época del día o del año.
+
+
+### Estudio de normalidad para todas las variables
+Para este caso recordamos el teorema del límite central que en el caso de poblaciones suficientemente grandes podemos asumir normalidad (N+3) (N+4). Sin embargo con el fin de realizar dicho estudio, evaluaremos la normalidad de diferentes muestras de nuestra población. Aunque lo ideal quizá hubiera sido hacer un estudio de la normalidad asintótica local o general (N+5).
+
+Para dicho estudio lo que vamos a hacer es aplicar los tests de Anderson-Darling y Shapiro-Wilk en varias muestras de la población total para cada una de las variables. Solo aquellas variables que cuya mediana de todos los p-value de los tests den por encima de 0.05 serán tomados como normales según dichos tests.
+
+````{r}
+
+for (i in names(aux_data)){
+  p_value_adtest<-ad.test(aux_data[,i])$p.value
+  if (p_value_adtest>0.05){
+    print(p_value_adtest)  
+  }
+}
+
+for (i in names(aux_data)){
+
+  if (p_value_adtest>0.05){
+    print(p_value_adtest)  
+  }
+}
+
+p_values_adtest<-c()
+p_values_shapiro<-c()
+normal_features_list<-c()
+
+
+for (i in names(aux_data)){
+  p_values_adtest<-c()
+  p_values_shapiro<-c()
+  for (cv in seq(1,500,1)){
+    local_norm_sample <- sample(aux_data[,i],55, replace = TRUE)
+    p_value_adtest<-ad.test(local_norm_sample)$p.value
+    p_value_shapiro<-shapiro.test(local_norm_sample)$p.value
+    p_values_adtest<-append(p_values_adtest,p_value_adtest)
+    p_values_shapiro<-append(p_values_shapiro,p_value_shapiro)
+    if ((median(p_values_adtest)>0.05) & (median(p_values_shapiro)>0.05)){
+      print(i)
+      normal_features_list<-append(normal_features_list,i)
+    }
+    #print(median(p_values_adtest))
+    #print(median(p_values_shapiro))
+  }
+}
+
+
+````
+
+
+Estas son las variables que, según los tests de Anderson-Darling y Shapiro-Wilk, podemos decir que cumplen con normalidad estadísticamente.
+
+````{r}
+
+for (feature in unique(normal_features_list)){
+  hist(aux_data[,feature],100,xlab="")
+}
+````
+
+
+
+
+
+
+
+
+
+
+
+
+
 ### Comprobación de homocedasticidad para la variable dependiente
 
 ````{r include=FALSE,echo=FALSE,message=FALSE,warning=FALSE}
@@ -506,8 +578,51 @@ for (i in names(aux_data)){
   }
 }
 
+
+for (i in names(aux_data)){
+  seed.sample(42)
+  dsample <- sample(aux_data[1:30000,i],55, replace = TRUE)
+  p_value_adtest<-shapiro.test(dsample)$p.value
+  plot(density(dsample))
+  if (p_value_adtest>0.05){
+    print(p_value_adtest)  
+  }
+}
+
+
+
 ````
 
+
+Sin tratado BoxCox, se puede descartar la hipótesis nula desde unas 60 muestras. Los plots no presentan una distribución normal.
+
+
+Después de explorar un ratete, he visto que el test de shapiro sólo acepta 5k entradas de input. si se realiza el test con aux_data, que tiene 35k entradas, probablemente esté cogiendo los valores empezando por el 0 y no los de en medio. He probado a correr ambos tests con menos muestras, cogiéndolas aleatorias, y sí que pasa el test en algunos casos, deberíamos ver cómo hacer la selección de muestras.
+
+
+````{r}
+library(DescTools)
+
+for (i in names(aux_data)){
+  dsample <- aux_data[1:350,i]
+  x <- BoxCox(dsample, lambda = BoxCoxLambda(dsample))
+  p_value_adtest<-shapiro.test(x)$p.value
+  plot(density(x))
+  qqnorm(x, main="Distribución")
+  qqline(x,col=2)
+  hist(x,main="Lognormal")
+  if (p_value_adtest>0.05){
+    print(p_value_adtest)  
+  }
+}
+
+
+
+
+````
+
+
+Si hacemos un procesado BoxCox, 
 
 ## pruebas por contraste de hipótesis paramétricas
 
@@ -604,6 +719,6 @@ kable(feature_importance_tree_model_percentage)
 (N) http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/ 
 (N+1) https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model
 (N+2) https://www.itl.nist.gov/div898/handbook/prc/section2/prc213.htm
-
-
-
+(N+3) https://stat.ethz.ch/pipermail/r-help/2007-April/129620.html
+(N+4) **Carles Rovira Escofet**. *Teorema del límite central*. UOC
+(N+5) https://web.stanford.edu/class/stats300b/Notes/contiguity-and-asymptotics.pdf
