@@ -441,25 +441,11 @@ Tenemos que entender que la normalidad es una propiedad única de cada variable 
 
 
 ### Estudio de normalidad para todas las variables
-Para este caso recordamos el teorema del límite central que en el caso de poblaciones suficientemente grandes podemos asumir normalidad (N+3) (N+4). Sin embargo con el fin de realizar dicho estudio, evaluaremos la normalidad de diferentes muestras de nuestra población. Aunque lo ideal quizá hubiera sido hacer un estudio de la normalidad asintótica local o general (N+5).
+Para este caso recordamos el teorema del límite central que en el caso de poblaciones suficientemente grandes podemos asumir normalidad (N+3) (N+4). Sin embargo con el fin de realizar dicho estudio, evaluaremos la normalidad de diferentes muestras de nuestra población. Aunque lo ideal quizá hubiera sido hacer un estudio de la normalidad asintótica local o general (N+5) (N+6).
 
 Para dicho estudio lo que vamos a hacer es aplicar los tests de Anderson-Darling y Shapiro-Wilk en varias muestras de la población total para cada una de las variables. Solo aquellas variables que cuya mediana de todos los p-value de los tests den por encima de 0.05 serán tomados como normales según dichos tests.
 
 ````{r}
-
-for (i in names(aux_data)){
-  p_value_adtest<-ad.test(aux_data[,i])$p.value
-  if (p_value_adtest>0.05){
-    print(p_value_adtest)  
-  }
-}
-
-for (i in names(aux_data)){
-
-  if (p_value_adtest>0.05){
-    print(p_value_adtest)  
-  }
-}
 
 p_values_adtest<-c()
 p_values_shapiro<-c()
@@ -476,7 +462,6 @@ for (i in names(aux_data)){
     p_values_adtest<-append(p_values_adtest,p_value_adtest)
     p_values_shapiro<-append(p_values_shapiro,p_value_shapiro)
     if ((median(p_values_adtest)>0.05) & (median(p_values_shapiro)>0.05)){
-      print(i)
       normal_features_list<-append(normal_features_list,i)
     }
     #print(median(p_values_adtest))
@@ -484,32 +469,44 @@ for (i in names(aux_data)){
   }
 }
 
+normal_features_list_2<-c()
+
+for (i in names(aux_data)){
+  if (!(i %in% unique(normal_features_list))){
+    p_values_adtest<-c()
+    p_values_shapiro<-c()
+    for (cv in seq(1,500,1)){
+      local_norm_sample <- sample(aux_data[,i],55, replace = TRUE)
+      p_value_adtest<-ad.test(local_norm_sample)$p.value
+      p_value_shapiro<-shapiro.test(local_norm_sample)$p.value
+      p_values_adtest<-append(p_values_adtest,p_value_adtest)
+      p_values_shapiro<-append(p_values_shapiro,p_value_shapiro)
+      if ((median(p_values_adtest)>0.05) & (median(p_values_shapiro)>0.05)){
+        print(i)
+        normal_features_list_2<-append(normal_features_list_2,i)
+      }
+      #print(median(p_values_adtest))
+      #print(median(p_values_shapiro))
+    }
+  }
+}
 
 ````
 
 
-Estas son las variables que, según los tests de Anderson-Darling y Shapiro-Wilk, podemos decir que cumplen con normalidad estadísticamente.
+Estas son las variables que, según los tests de Anderson-Darling y Shapiro-Wilk, podemos decir que cumplen con normalidad estadísticamente: `r unique(normal_features_list))`
 
 ````{r}
 
 for (feature in unique(normal_features_list)){
-  hist(aux_data[,feature],100,xlab="")
+  hist(aux_data[,feature],100,xlab="",main=feaure)
 }
 ````
 
 
 
 
-
-
-
-
-
-
-
-
-
-### Comprobación de homocedasticidad para la variable dependiente
+### Comprobación de homocedasticidad para la regresión sobre la variable dependiente: el precio
 
 ````{r include=FALSE,echo=FALSE,message=FALSE,warning=FALSE}
 for (i in names(aux_data)){hist(aux_data[,i],100,main = i)}
@@ -532,9 +529,51 @@ lines(c(-4,4),c(-3,3),col="blue",lwd=4)
 legend(-3, legend=c("Regresión de los valores de los residuos","Línea imaginaria"), col=c("red","blue"), lty=1:2)
 ````
 
-Como prueba visual sobre dicha línea imaginaria se debe cumplir equidistancia entre los residuos por abajo y por arriba para que se cumpla la propiedad de homocedasticidad.
+Como prueba visual sobre dicha línea imaginaria se debe cumplir equidistancia entre los residuos por abajo y por arriba para que se cumpla la propiedad de homocedasticidad. Podemos ver como existe una simetría sobre dicho eje imaginario dando pie a pensar en la existencia de homocedasticidad para la variable del precio con respecto al resto.
 
-¿POR QUÉ EXISTE ESA SEGUNDA LINEA ALREDEDOR DEL VALOR NULO DE LOS RESIDUOS? ¿CUALES SON LOS ""TIPOS"" DE REGISTROS QUE MEJOR REGRESIONA?
+Sin embargo, y de forma estadística, veremos que parece que no se cumple al aplicar 
+
+
+
+````{r}
+
+
+
+
+for (name_j in names(aux_data)){
+  p_value_fligner<-fligner.test(aux_data[,"price.actual"],aux_data[,name_j])$p.value
+  if (name_j!="price.actual"){
+    if (p_value_fligner>0.05){
+      print(name_j)
+      print(p_value_fligner)
+    }
+  }
+}
+
+p_values_fligner<-c()
+
+
+for (cv in seq(1,20,1)){
+  local_norm_sample <- sample(aux_data,55, replace = TRUE)
+  p_value_fligner<-fligner.test(local_norm_sample)$p.value
+  p_values_fligner<-append(p_values_fligner,p_value_fligner)
+}
+
+
+````
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Comprobación de homocedasticidad de todas las variables explicativas
 
@@ -722,3 +761,4 @@ kable(feature_importance_tree_model_percentage)
 (N+3) https://stat.ethz.ch/pipermail/r-help/2007-April/129620.html
 (N+4) **Carles Rovira Escofet**. *Teorema del límite central*. UOC
 (N+5) https://web.stanford.edu/class/stats300b/Notes/contiguity-and-asymptotics.pdf
+(N+6) https://journal.r-project.org/archive/2009/RJ-2009-015/RJ-2009-015.pdf
