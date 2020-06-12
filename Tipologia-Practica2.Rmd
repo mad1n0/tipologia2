@@ -9,6 +9,7 @@ output:
     toc_depth: 4
     code_folding: hide
     fig.show: hide
+    fig.align: center
     number_sections: yes
     theme: cosmo
   pdf_document: default
@@ -51,14 +52,14 @@ library(nortest)
 library(DescTools)
 ````
 
-# Carga y descripción del dataset elegido.
+# **Carga y descripción del dataset elegido.**
 
 ````{r}
 raw_data<-read.csv("energy_dataset.csv",stringsAsFactors = FALSE)
 #summary(raw_data)
 ````
 
-## Resumen cuantitativo del *dataset* escogido:
+## **Resumen cuantitativo del *dataset* escogido:**
 
 
 Las variables numéricas tienen las siguientes características:
@@ -129,7 +130,7 @@ summary(summ_stats_data)
 
 
 
-## Descripción de las variables y su contenido
+## **Descripción de las variables y su contenido**
 
 El dataset elegido es el energy_dataset de Kaggle (1). Contiene datos sobre la producción energética dee cada uno de los tipos de energía listados en las columnas y el coste de la compra de energía en cada uno de los instantes en los que se captura la información del dataset, durante un plazo de tiempo de tres años. Con él tenemos la intención de identificar qué factores y en qué medida la generación no controlable de energía renovable y la necesidad de consumo energético, así como la demanda energética, conducen a una fluctuación del precio de la energía, en qué momentos y estaciones. El dataset cuenta con los siguientes campos:
 
@@ -209,9 +210,9 @@ Unas de las preguntas que intentaremos resolver son:<br></br>
 - **¿Hay fuentes de energías que estadísticamente encarecen el precio final?**<br></br>
 
 
-# Selección de datos de interés.
+# **Selección de datos de interés.**
 
-## Desechar variables constantes
+## **Desechar variables constantes**
 Podemos ver en el summary anterior que hay una serie de variables que solo contienen cero y elementos vacíos.
 
 ````{r}
@@ -229,7 +230,7 @@ Estos son dichas variables: `r as.character(lack_info_names)` <br></br>
 Ese valor nulo, sin ninguna variación en todos los registros, puede demostrar dos cosas: falta de datos sobre la variable o que realmente se trata de un valor nulo constante. Sea como fuere, una variable constante no genera ninguna dependencia o patrón del que extraer información, más allá de con las otras variables que también puedan ser constantes.<br></br>
 
 
-## Discretización de la serie temporal
+## **Discretización de la serie temporal**
 
 Como no vamos a hacer una evaluación de una serie temporal lo que hacemos es discretizar la variable Time creando dos variables nuevas: daytime y season, para identificar el registro en el momento del día y la estación del año. Estas dos variables conforman 4 columnas con valores numéricos en una y caracteres en la otra.
 ````{r}
@@ -293,12 +294,12 @@ treat_data<-subset(treat_data,select = -c(generation.hydro.pumped.storage.aggreg
 ````
 
 
-# Limpieza de datos
+# **Limpieza de datos**
 
 Tras haber seleccionado las columnas que vamos a emplear seguimos con una limpieza por variables de valores *outliers*, valores vacíos y errores que podamos encontrar.
 
 
-## Valores outliers
+## **Valores outliers**
 
 En esta sección vamos a analizar los valores outliers representando su distribución junto a su boxplot. Con ello concluiremos cuales son relevantes y deben dejarse y cuales tendrían que ser tratados.
 ````{r}
@@ -363,7 +364,7 @@ Las anomalías interesantes las vemos en **generation.nuclear** o **generation.w
 
 Por último tenemos distribuciones extremas como **generation.fossil.gas** o **generation.hydro.pumped.storage.consumption**. En la primera *feature* la dispersión es pequeña y por tanto algunos valores quedan fuera de los quantiles formando parte de los *outliers*. En el otro caso tenemos que hay muchos días que no se genera energía con la técnica de agua  
 
-## Valores NA
+## **Valores NA**
 
 Vamos a imputar valores a los NA que tenía el *dataset* de base y a los outliers que hemos considerado para cambiarlos a NA. De primeras nos gustaría mostrar el siguiente histograma sobre cómo se distribuye los valores de generación de energía nuclear.
 
@@ -403,7 +404,7 @@ scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
 ````
 
 
-## Sumario del dataset preprocesado
+## **Sumario del dataset preprocesado**
 
 ````{r}
 #summary(scl_clean_data)
@@ -432,20 +433,18 @@ scl_clean_data[,"daytime"]<-clean_data[,"daytime"]
 - daytime
 - season
 
-# Análisis
+# **Análisis**
 
-## Decisión de los datos a comparar
-
-## Análisis de varianza y la normalidad del dataset
+## **Análisis de varianza y la normalidad del dataset**
 Antes de entrar en el análisis predictivo, vamos a estudiar la normalidad y la homocedasticidad. Ya que se presuponen esas propiedades a las variables que se les vaya a aplicar pruebas por contraste de hipótesis paramétricas u otros análisis.
 
 Tenemos que entender que la normalidad es una propiedad única de cada variable y la homocedasticidad ocurre sobre la regresión de una variable dependiente frente a una o varias variables explicativas. La homocedasticidad ocurre cuando la varianza es constante bajo variaciones de la variable dependiente. Por todo esto, buscaremos normalidad en todas las variables y buscaremos el conjunto de variables que cumplen homocedasticidad al regresionar el precio de la electricidad. Y es que nuestro objetivo es estudiar la evolución del precio intentando responder, por ejemplo: su relación con la fuente generadora de energía, si existe una que afecte más que el resto o si tiene alguna relación con la época del día o del año.
 
 
 ### Estudio de normalidad para todas las variables
-Para este caso recordamos el teorema del límite central que en el caso de poblaciones suficientemente grandes podemos asumir normalidad (N+3) (N+4). Sin embargo con el fin de realizar dicho estudio, evaluaremos la normalidad de diferentes muestras de nuestra población. Aunque lo ideal quizá hubiera sido hacer un estudio de la normalidad asintótica local o general (N+5) (N+6).
+Para este caso recordamos el teorema del límite central que en el caso de poblaciones suficientemente grandes podemos asumir normalidad (2) (3). Sin embargo con el fin de realizar dicho estudio, evaluaremos la normalidad de diferentes muestras de nuestra población. Aunque lo ideal quizá hubiera sido hacer un estudio de la normalidad asintótica local o general (4) (5).
 
-Para dicho estudio lo que vamos a hacer es aplicar los tests de Anderson-Darling (N+2) y Shapiro-Wilk en varias muestras de la población total para cada una de las variables. Solo aquellas variables que cuya mediana de todos los p-value de los tests den por encima de 0.05 serán tomados como normales según dichos tests.
+Para dicho estudio lo que vamos a hacer es aplicar los tests de Anderson-Darling (6) y Shapiro-Wilk en varias muestras de la población total para cada una de las variables. Solo aquellas variables que cuya mediana de todos los p-value de los tests den por encima de 0.05 serán tomados como normales según dichos tests.
 
 ````{r}
 
@@ -521,6 +520,13 @@ for (feature in unique(normal_features_list)){
 
 Posteriormente hemos aplicado la transformación Box-Cox a las variables que anteriormente no tenían la normalidad probada.
 
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#boxcox" role="button" aria-expanded="false" aria-controls="boxcox">
+    Gráficas muestra de las variables normales tras transformación Box-Cox.
+  </a>
+</p>
+<div class="collapse" id="boxcox">
+  <div class="card card-body">
 
 ````{r}
 normal_features_list_2<-c()
@@ -569,6 +575,10 @@ for (i in names(aux_data)){
 #}
 ````
 
+  </div>
+</div>
+
+
 El resultado es que `r length(normal_features_list_2)` variables también las podemos considerar normales: `r unique(normal_features_list_2)`
 
 ### Comprobación de homocedasticidad para la regresión sobre la variable dependiente: el precio
@@ -598,6 +608,15 @@ Como prueba visual sobre dicha línea imaginaria se debe cumplir equidistancia e
 
 Sin embargo, y de forma estadística, veremos que parece que no se cumple al aplicar 
 
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#homocedasticidad" role="button" aria-expanded="false" aria-controls="homocedasticidad">
+    Gráficas residuo-valor para la confirmación visual de homocedasticidad
+  </a>
+</p>
+<div class="collapse" id="homocedasticidad">
+  <div class="card card-body">
+
+
 ````{r}
 homocedasticity_features<-c()
 for (name_j in names(aux_data)){
@@ -626,6 +645,10 @@ for (cv in seq(1,20,1)){
 ````
 
 
+  </div>
+</div>
+
+
 ### Conclusiones del análisis de homocedasticidad y de normalidad
 
 Tenemos normalidad demostrada en las siguientes variables:
@@ -638,7 +661,7 @@ Además hemos visto que existe cierta homocedasticidad entre el precio actual y 
 `r kable(unique(homocedasticity_features),col.names=c("Features"))`
 
 
-## Correlación y regresión para las variables buenas
+### Correlación y regresión para las variables buenas
 
 Usando las features que hemos mostrado para las que se cumple normalidad y homocedasticidad frente al precio, antes haremos un estudio sobre sus correlaciones, capacidad de regresión y responderemos algunas preguntas usando el método de las hipótesis.
 
@@ -661,30 +684,54 @@ good_features_data<-good_features_data[-1]
 Para ilustrar las correlaciones entre las diferentes variables usaremos un mapa de calor:
 
 ````{r}
-heatmap(cor(good_features_data))
+cor_good_features<-cor(good_features_data)
+heatmap(cor_good_features,main="Correlaciones de las variables buenas",cexRow = 0.9,cexCol = 0.65)
 ````
+
+Podemos ver la correlación entre las variables de precio y de generación total con las de generación individuales. Aunque es interesante ver la relación entre la energía eólica y otras energías renovables.
+
 
 ### Regresión
 
 ````{r}
-lm_price_good_features<-lm(price.actual ~ . ,data=good_features_data)
+train_good<-subset(good_features_data[1:(nrow(good_features_data)*0.7),],select = -c(price.day.ahead))
+test_good<-subset(good_features_data[(nrow(good_features_data)*0.7):nrow(good_features_data),],select = -c(price.day.ahead))
 
+lm_price_good_features<-lm(price.actual ~ . ,data=train_good)
+
+good_price_pred<-predict(lm_price_good_features,test_good)
+
+rmse_lm_good_model<-rmse(preds = good_price_pred,actuals = test_good$price.actual)
 ````
 
-### Linealidad
+El modelo de regresión lineal utilizando únicamente los datos que cumplían las propiedades nos da un valor de RMSE de `r round(rmse_lm_good_model,2)`. De lo cual podemos intuir una variación sobre la predicción de un 20%. Teniendo en cuenta las pocas variables escogidas, teniendo tantas más, se trata de un resultado bueno. Sin embargo el coeficiente de correlación es `r summary(lm_price_good_features)$adj.r.square` lo que nos lleva a pensar que no exista una relación lineal entre todas las variables y el precio; aunque puede que sí que exista relación. Esta "otra relación" la investigaremos brevemente con el uso de árboles de decisiones para hacer un modelo de regresión.
 
 ### Feature importance
 
+````{r}
+tree_good_model<-rpart(price.actual ~ ., data=train_good,control=rpart.control(minsplit=2, minbucket = 1,cp=0.00001))
+nodes <- as.numeric(rownames(tree_good_model$frame))
+max_depth_tree_model<-max(rpart:::tree.depth(nodes))
 
-## ¿Podemos decir que las energías renovables o no renovables generan una electricidad más barata? Encarecimiento o abataramiento de la energía según un origen no renovable o renovable
-Tras ver el análisis para todas las variables, nos enfocamos en una de las preguntas: ¿la energía renovable encarece o abarata el precio? Para ello seguiremos el siguiente procedimiento:
+brief_tree_good_model<-prune.rpart(tree_good_model,cp=0.025)
+
+fancyRpartPlot(brief_tree_good_model,caption="Extracto de la totalidad del árbol")
+
+sum_nodes_tree_good<-sum(tree_good_model$variable.importance)
+feature_importance_tree_model_good_percentage<-(100*tree_good_model$variable.importance/sum_nodes_tree_good)
+kable(feature_importance_tree_model_good_percentage)
+````
+
+
+# **Efecto de las energías renovables sobre el precio**
+¿Podemos decir que las energías renovables o no renovables generan una electricidad más barata? Encarecimiento o abataramiento de la energía según un origen no renovable o renovable. Tras ver el análisis para todas las variables, nos enfocamos en una de las preguntas: ¿la energía renovable encarece o abarata el precio? Para ello seguiremos el siguiente procedimiento:
 
 1. Comprobar que existe una dependencia y estimar cuán fuerte puede ser.
 2. Recoger separadamente los precios de los días cuando más se ha producido energía renovable y cuando más se ha producido energía no renovable.
 3. Pasar un test t-Student, con el fin de probar que estadísticamente se puede afirmar que la media de los precios en ambos tipos de días difiere significativamente.
 4. Veremos la diferencia de los valores de precios para ambos tipos de días, revisando si se abarata o se encarece.
 
-### ¿Existe dependencia entre la generación no renovable y renovable con el precio? Contraste por hipótesis chicuadrado
+## **¿Existe dependencia entre la generación no renovable y renovable con el precio? Contraste por hipótesis chicuadrado**
 
 ````{r}
 ddata <- raw_data
@@ -697,11 +744,8 @@ Vamos a definir como alto precio aquél una desviación estándar por encima de 
 Esto se hace con la intención de aplicar test de chi quadrado y
 
 ````{r}
-ddata$price.actual <- ifelse(ddata$price.actual>=quant_3_price, 1, 0)
 norenovables <- ddata$generation.biomass + ddata$generation.fossil.brown.coal.lignite + ddata$generation.fossil.gas + ddata$generation.fossil.hard.coal + ddata$generation.fossil.oil + ddata$generation.nuclear
 renovables <- ddata$generation.hydro.pumped.storage.consumption + ddata$generation.hydro.run.of.river.and.poundage + ddata$generation.hydro.water.reservoir + ddata$generation.solar + ddata$generation.wind.onshore
-summary(renovables)
-summary(norenovables)
 ````
 
 ````{r}
@@ -710,8 +754,16 @@ quant_3_non_ren<-as.numeric(quantile(norenovables[!(is.na(norenovables))])[4])
 
 renovables <- ifelse(renovables > quant_3_ren, 1, 0)
 norenovables <- ifelse(norenovables > quant_3_non_ren, 1, 0)
-tabla1 <- table(ddata$price.actual, renovables)
-tabla2 <- table(ddata$price.actual, norenovables)
+
+renovables<-renovables[!(is.na(renovables))]
+norenovables<-norenovables[!(is.na(norenovables))]
+precios_energia<-ddata[!(is.na(ddata$price.actual)),"price.actual"]
+
+m_rev<-min(c(length(precios_energia),length(renovables)))
+
+
+tabla1 <- table(precios_energia[1:m_rev], renovables)
+tabla2 <- table(precios_energia[1:m_rev], norenovables)
 print(chisq.test(tabla1, correct = FALSE))
 print(chisq.test(tabla2, correct = FALSE))
 ````
@@ -719,30 +771,32 @@ print(chisq.test(tabla2, correct = FALSE))
 El valor p es menor que el nivel de significancia, con lo cuál podemos concluir que hay relación entre la generación de energía, tanto no renovable como la renovable, y el precio.
 
 
-### ¿Cómo de fuerte es esa relación precio-energía? Correlación
+## **¿Cómo de fuerte es esa relación precio-energía? Correlación**
+
+Para medir la fuerza de la dependencia de la generación de renovable y la generación no renovable con el precio, vamos a usar la correlación como valor numérico comparable.
 
 
-
-
-### ¿Es mayor el precio de la electricidad cuando hay más generación por renovables o cuando hay más generación por no renovables? Hipótesis de contraste de la media de dos grupos
+## **¿Es mayor el precio de la electricidad cuando hay más generación por renovables o cuando hay más generación por no renovables? Hipótesis de contraste de la media de dos grupos**
 
 ````{r}
-#wr <- which(renovables > quant_3_ren)
-#wnr <- which(norenovables > quant_3_non_ren)
+wr <- which(renovables == 1)
+wnr <- which(norenovables == 1)
 
-#preciorenovables <- raw_data$price.actual[wr]
-#precionorenovables <- raw_data$price.actual[wnr]
+preciorenovables <- raw_data[wr,"price.actual"]
+precionorenovables <- raw_data[wnr,"price.actual"]
 
-#info <- t.test(preciorenovables, precionorenovables, alternative = "less")
-#print(info)
+m_rev<-min(c(length(preciorenovables),length(preciorenovables)))
+
+info <- t.test(preciorenovables[1:m_rev], precionorenovables[1:m_rev], alternative = "less")
+print(info)
 ````
 
 Podemos confirmar estadísticamente que el valor medio de los precios para los momentos en que se produce más energía renovable es menor que cuando la generación de energías no renovables es alta. De forma que se puede interpretar como prueba a que la generación de energía mediante fuentes renovables abarata los precios de la electricidad frente a aquella generada mediante combustibles no renovables. 
 
 
-## Análisis predictivo. ¿Cuál es el precio de la electricidad sabiendo la generación, su rango de producción horario y anual?
+## **Análisis predictivo. ¿Cuál es el precio de la electricidad sabiendo la generación, su rango de producción horario y anual?**
 
-Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* (N) sea muy bajo para que el acierto en las poblaciones sea mayor. Para hacer la evaluación del modelo partido los datos en un set para entrenamiento y otro para testeo. La idea, como diferencia del los apartados anteriores, es crear un modelo que, aunque le perdamos la interpretabilidad sea capaz de predecir el valor del precio junto a la información sobre la hora del día, la estación del año y la generación de energía. Como posible aplicación sería la detección de anomalías en el precio de la electricidad, e incluso el fraude o manipulación de dichos valores.
+Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* (7) sea muy bajo para que el acierto en las poblaciones sea mayor. Para hacer la evaluación del modelo partido los datos en un set para entrenamiento y otro para testeo. La idea, como diferencia del los apartados anteriores, es crear un modelo que, aunque le perdamos la interpretabilidad sea capaz de predecir el valor del precio junto a la información sobre la hora del día, la estación del año y la generación de energía. Como posible aplicación sería la detección de anomalías en el precio de la electricidad, e incluso el fraude o manipulación de dichos valores.
 
 ````{r}
 x_train<-subset(aux_data[1:(nrow(aux_data)*0.7),],select = -c(price.day.ahead))
@@ -759,7 +813,7 @@ max_depth_tree_model<-max(rpart:::tree.depth(nodes))
 
 ````
 
-Aquí tenemos una parte del modelo, hemos hecho *pruning* porque el árbol original tiene (N+1) ramas con una profundidad máxima de `r max_depth_tree_model` y `r length(tree_model$splits)` particiones; con lo que queda claro el motivo por el que recortar el árbol a mostrar.
+Aquí tenemos una parte del modelo, hemos hecho *pruning* porque el árbol original tiene (8) ramas con una profundidad máxima de `r max_depth_tree_model` y `r length(tree_model$splits)` particiones; con lo que queda claro el motivo por el que recortar el árbol a mostrar.
 
 ````{r}
 brief_tree_model<-prune.rpart(tree_model,cp=0.01)
@@ -811,7 +865,7 @@ kable(feature_importance_tree_model_percentage)
 </div>
 
 
-## Conclusiones
+# **Conclusiones**
 
 - Por un lado hemos visto que la generación de energía mediante combustible fósil tiene un gran impacto en el precio, aunque sorprendentemente la energía hidroeléctrica también tiene un gran impacto en el precio; más incluso que la nuclear, la estacionalidad, o la eólica.
 
@@ -821,20 +875,12 @@ kable(feature_importance_tree_model_percentage)
 
 
 
-# Referencias
-(1) https://www.kaggle.com/nicholasjhana/energy-consumption-generation-prices-and-weather?select=weather_features.csv
-(2) https://data.library.virginia.edu/understanding-q-q-plots/
-(3) https://es.wikipedia.org/wiki/Propagaci%C3%B3n_de_errores
-(4) http://pages.stat.wisc.edu/~st571-1/06-tables-4.pdf
-(5) http://networkianos.com/odd-ratio-que-es-como-se-interpreta/#toc-3 
-(6) https://prevencion.umh.es/files/2015/03/riesgo-relativo-y-odds-ratio.pdf
-(7) https://stats.stackexchange.com/questions/25839/logistic-regression-in-r-returning-na-values
-(8) https://en.wikipedia.org/wiki/Hosmer%E2%80%93Lemeshow_test 
-(9) https://www.statisticshowto.com/hosmer-lemeshow-test/ 
-(N) http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/ 
-(N+1) https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model
-(N+2) https://www.itl.nist.gov/div898/handbook/prc/section2/prc213.htm
-(N+3) https://stat.ethz.ch/pipermail/r-help/2007-April/129620.html
-(N+4) **Carles Rovira Escofet**. *Teorema del límite central*. UOC
-(N+5) https://web.stanford.edu/class/stats300b/Notes/contiguity-and-asymptotics.pdf
-(N+6) https://journal.r-project.org/archive/2009/RJ-2009-015/RJ-2009-015.pdf
+# **Referencias**
+(1) https://www.kaggle.com/nicholasjhana/energy-consumption-generation-prices-and-weather
+(2) https://stat.ethz.ch/pipermail/r-help/2007-April/129620.html 
+(3) **Carles Rovira Escofet**. *Teorema del límite central*. UOC
+(4) https://web.stanford.edu/class/stats300b/Notes/contiguity-and-asymptotics.pdf
+(5) https://journal.r-project.org/archive/2009/RJ-2009-015/RJ-2009-015.pdf
+(6) https://www.itl.nist.gov/div898/handbook/prc/section2/prc213.htm
+(7) http://www.learnbymarketing.com/tutorials/rpart-decision-trees-in-r/ 
+(8) https://stackoverflow.com/questions/40897081/how-can-i-get-the-depth-of-the-tree-in-rpart-model
