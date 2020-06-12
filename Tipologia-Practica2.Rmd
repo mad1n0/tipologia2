@@ -523,7 +523,6 @@ Posteriormente hemos aplicado la transformación Box-Cox a las variables que ant
 
 
 ````{r}
-
 normal_features_list_2<-c()
 for (i in names(aux_data)){
   if (!(i %in% unique(normal_features_list))){
@@ -568,9 +567,6 @@ for (i in names(aux_data)){
     #}
   #}
 #}
-
-
-
 ````
 
 El resultado es que `r length(normal_features_list_2)` variables también las podemos considerar normales: `r unique(normal_features_list_2)`
@@ -603,7 +599,6 @@ Como prueba visual sobre dicha línea imaginaria se debe cumplir equidistancia e
 Sin embargo, y de forma estadística, veremos que parece que no se cumple al aplicar 
 
 ````{r}
-
 homocedasticity_features<-c()
 for (name_j in names(aux_data)){
   p_value_fligner<-fligner.test(aux_data[,"price.actual"],aux_data[,name_j])$p.value
@@ -628,9 +623,6 @@ for (cv in seq(1,20,1)){
   p_value_fligner<-fligner.test(local_norm_sample)$p.value
   p_values_fligner<-append(p_values_fligner,p_value_fligner)
 }
-
-
-
 ````
 
 
@@ -646,44 +638,114 @@ Además hemos visto que existe cierta homocedasticidad entre el precio actual y 
 `r kable(unique(homocedasticity_features),col.names=c("Features"))`
 
 
-## Correlación, regresión y pruebas por contraste de hipótesis paramétricas
+## Correlación y regresión para las variables buenas
 
-Usando las features que hemos mostrado antes haremos un estudio sobre sus correlaciones, capacidad de regresión y responderemos algunas preguntas usando el método de las hipótesis.
+Usando las features que hemos mostrado para las que se cumple normalidad y homocedasticidad frente al precio, antes haremos un estudio sobre sus correlaciones, capacidad de regresión y responderemos algunas preguntas usando el método de las hipótesis.
 
 ````{r}
 good_features<-c()
 good_features<-append(good_features,normal_features_list_2)
 good_features<-append(good_features,normal_features_list)
 good_features<-append(good_features,homocedasticity_features)
-an_stats_data<-data.frame()
-an_stats_data<-data.frame(c(vector(),1:nrow(aux_data)))
+
+good_features_data<-data.frame(c(vector(),1:nrow(aux_data)))
+
 for (feature in unique(good_features)){
-  an_stats_data[,feature]<-aux_data[,feature]
+  good_features_data[,feature]<-aux_data[,feature]
 }
-an_stats_data<-an_stats_data[-1]
+good_features_data<-good_features_data[-1]
 ````
 
-### Correlación
+### Correlaciones
 
 Para ilustrar las correlaciones entre las diferentes variables usaremos un mapa de calor:
 
 ````{r}
-heatmap(cor(an_stats_data))
+heatmap(cor(good_features_data))
 ````
 
-### ¿Podemos decir que las energías renovables o alternativas generan una electricidad más barata?
-
-### ¿Hay fuentes de energías que estadísticamente encarecen el precio final?
-
-
-
-## Análisis predictivo. ¿Cuál es el precio de la electricidad sabiendo la generación y su origen?
-
-Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* (N) sea muy bajo para que el acierto en las poblaciones sea mayor. Para hacer la evaluación del modelo partido los datos en un set para entrenamiento y otro para testeo.
+### Regresión
 
 ````{r}
-x_train<-aux_data[1:(nrow(aux_data)*0.7),]
-x_test<-aux_data[(nrow(aux_data)*0.7):nrow(aux_data),]
+lm_price_good_features<-lm(price.actual ~ . ,data=good_features_data)
+
+````
+
+### Linealidad
+
+### Feature importance
+
+
+## ¿Podemos decir que las energías renovables o no renovables generan una electricidad más barata? Encarecimiento o abataramiento de la energía según un origen no renovable o renovable
+Tras ver el análisis para todas las variables, nos enfocamos en una de las preguntas: ¿la energía renovable encarece o abarata el precio? Para ello seguiremos el siguiente procedimiento:
+
+1. Comprobar que existe una dependencia y estimar cuán fuerte puede ser.
+2. Recoger separadamente los precios de los días cuando más se ha producido energía renovable y cuando más se ha producido energía no renovable.
+3. Pasar un test t-Student, con el fin de probar que estadísticamente se puede afirmar que la media de los precios en ambos tipos de días difiere significativamente.
+4. Veremos la diferencia de los valores de precios para ambos tipos de días, revisando si se abarata o se encarece.
+
+### ¿Existe dependencia entre la generación no renovable y renovable con el precio? Contraste por hipótesis chicuadrado
+
+````{r}
+ddata <- raw_data
+#summary(ddata$price.actual)
+quant_3_price<-quantile(ddata[,"price.actual"])[4]
+ddata$price.actual <- ifelse(ddata$price.actual>=quant_3_price, 1, 0)
+````
+
+Vamos a definir como alto precio aquél una desviación estándar por encima de la media, `r quant_3_price`. A partir de este punto la variable price.actual en la copia del dataframe ddata será 1 en caso de ser superior o igual a `r quant_3_price` y 0 en caso contrario. 
+Esto se hace con la intención de aplicar test de chi quadrado y
+
+````{r}
+ddata$price.actual <- ifelse(ddata$price.actual>=quant_3_price, 1, 0)
+norenovables <- ddata$generation.biomass + ddata$generation.fossil.brown.coal.lignite + ddata$generation.fossil.gas + ddata$generation.fossil.hard.coal + ddata$generation.fossil.oil + ddata$generation.nuclear
+renovables <- ddata$generation.hydro.pumped.storage.consumption + ddata$generation.hydro.run.of.river.and.poundage + ddata$generation.hydro.water.reservoir + ddata$generation.solar + ddata$generation.wind.onshore
+summary(renovables)
+summary(norenovables)
+````
+
+````{r}
+quant_3_ren<-as.numeric(quantile(renovables[!(is.na(renovables))])[4])
+quant_3_non_ren<-as.numeric(quantile(norenovables[!(is.na(norenovables))])[4])
+
+renovables <- ifelse(renovables > quant_3_ren, 1, 0)
+norenovables <- ifelse(norenovables > quant_3_non_ren, 1, 0)
+tabla1 <- table(ddata$price.actual, renovables)
+tabla2 <- table(ddata$price.actual, norenovables)
+print(chisq.test(tabla1, correct = FALSE))
+print(chisq.test(tabla2, correct = FALSE))
+````
+
+El valor p es menor que el nivel de significancia, con lo cuál podemos concluir que hay relación entre la generación de energía, tanto no renovable como la renovable, y el precio.
+
+
+### ¿Cómo de fuerte es esa relación precio-energía? Correlación
+
+
+
+
+### ¿Es mayor el precio de la electricidad cuando hay más generación por renovables o cuando hay más generación por no renovables? Hipótesis de contraste de la media de dos grupos
+
+````{r}
+wr <- which(renovables > quant_3_ren)
+wnr <- which(norenovables > quant_3_non_ren)
+
+preciorenovables <- raw_data$price.actual[wr]
+precionorenovables <- raw_data$price.actual[wnr]
+
+info <- t.test(preciorenovables, precionorenovables, alternative = "less")
+print(info)
+````
+
+Podemos ver que 
+
+## Análisis predictivo. ¿Cuál es el precio de la electricidad sabiendo la generación, su rango de producción horario y anual?
+
+Por otro lado vamos a intentar ver si podemos hacer un modelo de regresión con un arbol de decisión cuyo *complexity parameter* (N) sea muy bajo para que el acierto en las poblaciones sea mayor. Para hacer la evaluación del modelo partido los datos en un set para entrenamiento y otro para testeo. La idea, como diferencia del los apartados anteriores, es crear un modelo que, aunque le perdamos la interpretabilidad sea capaz de predecir el valor del precio junto a la información sobre la hora del día, la estación del año y la generación de energía. Como posible aplicación sería la detección de anomalías en el precio de la electricidad, e incluso el fraude o manipulación de dichos valores.
+
+````{r}
+x_train<-subset(aux_data[1:(nrow(aux_data)*0.7),],select = -c(price.day.ahead))
+x_test<-subset(aux_data[(nrow(aux_data)*0.7):nrow(aux_data),],select = -c(price.day.ahead))
 ````
 
 ### Entrenamiento
@@ -691,9 +753,7 @@ x_test<-aux_data[(nrow(aux_data)*0.7):nrow(aux_data),]
 Entrenaremos el modelo ajustando los parámetros para que sea preciso. En la evaluación podremos ver si estamos sobreentrenando o si el modelo es suficientemente bueno.
 ````{r}
 tree_model<-rpart(price.actual ~ ., data=x_train,control=rpart.control(minsplit=2, minbucket = 1,cp=0.00001))
-
 nodes <- as.numeric(rownames(tree_model$frame))
-
 max_depth_tree_model<-max(rpart:::tree.depth(nodes))
 
 ````
@@ -748,6 +808,15 @@ kable(feature_importance_tree_model_percentage)
 
   </div>
 </div>
+
+
+## Conclusiones
+
+- Por un lado hemos visto que la generación de energía mediante combustible fósil tiene un gran impacto en el precio, aunque sorprendentemente la energía hidroeléctrica también tiene un gran impacto en el precio; más incluso que la nuclear, la estacionalidad, o la eólica.
+
+- Hemos demostrado estadísticamente que la cantidad de generación de energía tiene dependencia en el precio.
+
+- Hemos demostrado que el precio de la electricidad es menor cuanta más energía renovable se emplea, frente al uso de las energías provenientes de fuentes no renovables.
 
 
 
