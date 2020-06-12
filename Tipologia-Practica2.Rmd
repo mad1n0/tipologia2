@@ -25,6 +25,7 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("gmodels",repos = "http://cran.us.r-project.org")
 #install.packages("faraway",repos = "http://cran.us.r-project.org")
 #install.packages("nortest",repos = "http://cran.us.r-project.org")
+#install.packages("DescTools",repos = "http://cran.us.r-project.org")
 #list.of.packages <- c("VIM")
 #new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 #if(length(new.packages)) install.packages(new.packages)
@@ -47,6 +48,7 @@ library(rattle)
 library(rpart)
 library(mltools)
 library(nortest)
+library(DescTools)
 ````
 
 # Carga y descripción del dataset elegido.
@@ -443,7 +445,7 @@ Tenemos que entender que la normalidad es una propiedad única de cada variable 
 ### Estudio de normalidad para todas las variables
 Para este caso recordamos el teorema del límite central que en el caso de poblaciones suficientemente grandes podemos asumir normalidad (N+3) (N+4). Sin embargo con el fin de realizar dicho estudio, evaluaremos la normalidad de diferentes muestras de nuestra población. Aunque lo ideal quizá hubiera sido hacer un estudio de la normalidad asintótica local o general (N+5) (N+6).
 
-Para dicho estudio lo que vamos a hacer es aplicar los tests de Anderson-Darling y Shapiro-Wilk en varias muestras de la población total para cada una de las variables. Solo aquellas variables que cuya mediana de todos los p-value de los tests den por encima de 0.05 serán tomados como normales según dichos tests.
+Para dicho estudio lo que vamos a hacer es aplicar los tests de Anderson-Darling (N+2) y Shapiro-Wilk en varias muestras de la población total para cada una de las variables. Solo aquellas variables que cuya mediana de todos los p-value de los tests den por encima de 0.05 serán tomados como normales según dichos tests.
 
 ````{r}
 
@@ -482,7 +484,6 @@ for (i in names(aux_data)){
       p_values_adtest<-append(p_values_adtest,p_value_adtest)
       p_values_shapiro<-append(p_values_shapiro,p_value_shapiro)
       if ((median(p_values_adtest)>0.05) & (median(p_values_shapiro)>0.05)){
-        print(i)
         normal_features_list_2<-append(normal_features_list_2,i)
       }
       #print(median(p_values_adtest))
@@ -494,17 +495,85 @@ for (i in names(aux_data)){
 ````
 
 
-Estas son las variables que, según los tests de Anderson-Darling y Shapiro-Wilk, podemos decir que cumplen con normalidad estadísticamente: `r unique(normal_features_list))`
+Estas son las variables que, según los tests de Anderson-Darling y Shapiro-Wilk, podemos decir que cumplen con normalidad estadísticamente: `r unique(normal_features_list)`
+
+
+
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#normal_dist_features" role="button" aria-expanded="false" aria-controls="normal_dist_features">
+    Histogramas de las variables en las que encontramos normalidad según los tests
+  </a>
+</p>
+<div class="collapse" id="normal_dist_features">
+  <div class="card card-body">
 
 ````{r}
 
 for (feature in unique(normal_features_list)){
-  hist(aux_data[,feature],100,xlab="",main=feaure)
+  hist(aux_data[,feature],100,xlab="",main=feature)
 }
 ````
 
+  </div>
+</div>
 
 
+
+Posteriormente hemos aplicado la transformación Box-Cox a las variables que anteriormente no tenían la normalidad probada.
+
+
+````{r}
+
+normal_features_list_2<-c()
+for (i in names(aux_data)){
+  if (!(i %in% unique(normal_features_list))){
+    p_values_adtest<-c()
+    p_values_shapiro<-c()
+    for (cv in seq(1,100,1)){
+      local_norm_sample <- sample(aux_data[,i],100, replace = TRUE)
+      x <- BoxCox(local_norm_sample, lambda = BoxCoxLambda(local_norm_sample))
+      p_value_adtest<-ad.test(x)$p.value
+      p_value_shapiro<-shapiro.test(x)$p.value
+      p_values_adtest<-append(p_values_adtest,p_value_adtest)
+      p_values_shapiro<-append(p_values_shapiro,p_value_shapiro)
+    }
+    if ((max(p_values_adtest)>0.05) & (max(p_values_shapiro)>0.05)){
+      plot(density(x),xlab=i)
+      #qqnorm(x, main="Distribución",xlab=i)
+      #qqline(x,col=2,xlab=i)
+      hist(aux_data[,i],xlab=i,100,main="La variable sin transformar")
+      #hist(xlab=i,BoxCox(aux_data[,i], lambda = BoxCoxLambda(local_norm_sample)),100,main="La variable bajo transformación BoX-Cox")
+      #hist(x,xlab=i,100,main="La muestra que testea")
+      normal_features_list_2<-append(normal_features_list_2,i)
+    }
+    #print(median(p_values_adtest))
+    #print(median(p_values_shapiro))
+  }
+}
+
+#for (i in names(aux_data)){
+#  if (!(i %in% unique(normal_features_list))){
+ #   dsample <- aux_data[1:50,i]
+  #  x <- BoxCox(dsample, lambda = BoxCoxLambda(dsample))
+   # p_value_adtest<-shapiro.test(x)$p.value
+    #if (p_value_adtest>0.05){
+    #  print(p_value_adtest)
+    #  print(i)
+     # plot(density(x),xlab=i)
+      #qqnorm(x, main="Distribución",xlab=i)
+      #qqline(x,col=2,xlab=i)
+      #hist(aux_data[,i],xlab=i,100,main="La variable sin transformar")
+      #hist(xlab=i,BoxCox(aux_data[,i], lambda = BoxCoxLambda(dsample)),100,main="La variable bajo transformación BoX-Cox")
+      #hist(x,xlab=i,100,main="La muestra que testea")
+    #}
+  #}
+#}
+
+
+
+````
+
+El resultado es que `r length(normal_features_list_2)` variables también las podemos considerar normales: `r unique(normal_features_list_2)`
 
 ### Comprobación de homocedasticidad para la regresión sobre la variable dependiente: el precio
 
@@ -533,19 +602,20 @@ Como prueba visual sobre dicha línea imaginaria se debe cumplir equidistancia e
 
 Sin embargo, y de forma estadística, veremos que parece que no se cumple al aplicar 
 
-
-
 ````{r}
 
-
-
-
+homocedasticity_features<-c()
 for (name_j in names(aux_data)){
   p_value_fligner<-fligner.test(aux_data[,"price.actual"],aux_data[,name_j])$p.value
   if (name_j!="price.actual"){
     if (p_value_fligner>0.05){
+      form_aux<-as.formula(paste("price.actual","~",name_j))
+      lm_price_aux_norm<-lm(form_aux,data=aux_data)
+      aux_res_lm_price_x_data<-data.frame(prices=seq(-5,5,0.05))
+      plot(aux_data$price.actual,summary(lm_price_aux_norm)$residual,xlab="Precios",ylab="Residuos")
       print(name_j)
       print(p_value_fligner)
+      homocedasticity_features<-append(homocedasticity_features,name_j)
     }
   }
 }
@@ -560,110 +630,46 @@ for (cv in seq(1,20,1)){
 }
 
 
+
 ````
 
 
+### Conclusiones del análisis de homocedasticidad y de normalidad
+
+Tenemos normalidad demostrada en las siguientes variables:
+
+`r kable(unique(normal_features_list_2),col.names=c("Features"))`
+`r kable(unique(normal_features_list),col.names=c("Features"))`
+
+Además hemos visto que existe cierta homocedasticidad entre el precio actual y el conjunto completo del resto de las variables. Aunque en relación uno a uno, estas son las que cumplen homocedasticidad al regresionar el precio:
+
+`r kable(unique(homocedasticity_features),col.names=c("Features"))`
 
 
+## Correlación, regresión y pruebas por contraste de hipótesis paramétricas
 
-
-
-
-
-
-
-
-
-
-### Comprobación de homocedasticidad de todas las variables explicativas
-
+Usando las features que hemos mostrado antes haremos un estudio sobre sus correlaciones, capacidad de regresión y responderemos algunas preguntas usando el método de las hipótesis.
 
 ````{r}
-
-for (name_i in names(aux_data)){
-  for (name_j in names(aux_data)){
-    if (name_j!=name_i){
-      p_value_fligner<-fligner.test(aux_data[,name_i],aux_data[,name_j])$p.value
-      if (p_value_fligner>0.05){
-        print(name_i)
-        print(name_j)
-        print(p_value_fligner)
-      }
-    }
-  }
+good_features<-c()
+good_features<-append(good_features,normal_features_list_2)
+good_features<-append(good_features,normal_features_list)
+good_features<-append(good_features,homocedasticity_features)
+an_stats_data<-data.frame()
+an_stats_data<-data.frame(c(vector(),1:nrow(aux_data)))
+for (feature in unique(good_features)){
+  an_stats_data[,feature]<-aux_data[,feature]
 }
-
-
+an_stats_data<-an_stats_data[-1]
 ````
 
+### Correlación
 
-
-### Comprobación de la normalidad de todas las variables
-Anderson-Darling (N+2)
+Para ilustrar las correlaciones entre las diferentes variables usaremos un mapa de calor:
 
 ````{r}
-
-for (i in names(aux_data)){
-  p_value_adtest<-ad.test(aux_data[,i])$p.value
-  if (p_value_adtest>0.05){
-    print(p_value_adtest)  
-  }
-}
-
-for (i in names(aux_data)){
-  p_value_adtest<-shapiro.test(aux_data[1:3000,i])$p.value
-  if (p_value_adtest>0.05){
-    print(p_value_adtest)  
-  }
-}
-
-
-for (i in names(aux_data)){
-  seed.sample(42)
-  dsample <- sample(aux_data[1:30000,i],55, replace = TRUE)
-  p_value_adtest<-shapiro.test(dsample)$p.value
-  plot(density(dsample))
-  if (p_value_adtest>0.05){
-    print(p_value_adtest)  
-  }
-}
-
-
-
+heatmap(cor(an_stats_data))
 ````
-
-
-Sin tratado BoxCox, se puede descartar la hipótesis nula desde unas 60 muestras. Los plots no presentan una distribución normal.
-
-
-Después de explorar un ratete, he visto que el test de shapiro sólo acepta 5k entradas de input. si se realiza el test con aux_data, que tiene 35k entradas, probablemente esté cogiendo los valores empezando por el 0 y no los de en medio. He probado a correr ambos tests con menos muestras, cogiéndolas aleatorias, y sí que pasa el test en algunos casos, deberíamos ver cómo hacer la selección de muestras.
-
-
-````{r}
-library(DescTools)
-
-for (i in names(aux_data)){
-  dsample <- aux_data[1:350,i]
-  x <- BoxCox(dsample, lambda = BoxCoxLambda(dsample))
-  p_value_adtest<-shapiro.test(x)$p.value
-  plot(density(x))
-  qqnorm(x, main="Distribución")
-  qqline(x,col=2)
-  hist(x,main="Lognormal")
-  if (p_value_adtest>0.05){
-    print(p_value_adtest)  
-  }
-}
-
-
-
-
-````
-
-
-Si hacemos un procesado BoxCox, 
-
-## pruebas por contraste de hipótesis paramétricas
 
 ### ¿Podemos decir que las energías renovables o alternativas generan una electricidad más barata?
 
