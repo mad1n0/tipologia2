@@ -1,0 +1,1 @@
+Este trabajo ha sido realizado por Marc Valdivieso Merino y Samuel Campo Martínez. El repositorio contiene el código en un Rmd que ha sido usado para generar un archivo .html . Los datos empleados han sido los del archivo energy_dataset.csv .
