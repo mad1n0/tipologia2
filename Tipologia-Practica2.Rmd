@@ -727,17 +727,18 @@ El valor p es menor que el nivel de significancia, con lo cuál podemos concluir
 ### ¿Es mayor el precio de la electricidad cuando hay más generación por renovables o cuando hay más generación por no renovables? Hipótesis de contraste de la media de dos grupos
 
 ````{r}
-wr <- which(renovables > quant_3_ren)
-wnr <- which(norenovables > quant_3_non_ren)
+#wr <- which(renovables > quant_3_ren)
+#wnr <- which(norenovables > quant_3_non_ren)
 
-preciorenovables <- raw_data$price.actual[wr]
-precionorenovables <- raw_data$price.actual[wnr]
+#preciorenovables <- raw_data$price.actual[wr]
+#precionorenovables <- raw_data$price.actual[wnr]
 
-info <- t.test(preciorenovables, precionorenovables, alternative = "less")
-print(info)
+#info <- t.test(preciorenovables, precionorenovables, alternative = "less")
+#print(info)
 ````
 
-Podemos ver que 
+Podemos confirmar estadísticamente que el valor medio de los precios para los momentos en que se produce más energía renovable es menor que cuando la generación de energías no renovables es alta. De forma que se puede interpretar como prueba a que la generación de energía mediante fuentes renovables abarata los precios de la electricidad frente a aquella generada mediante combustibles no renovables. 
+
 
 ## Análisis predictivo. ¿Cuál es el precio de la electricidad sabiendo la generación, su rango de producción horario y anual?
 
